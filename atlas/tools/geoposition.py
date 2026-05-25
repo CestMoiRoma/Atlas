@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""atlas/tools/geoposition.py — MCP tool: current city/region/country via macOS CoreLocation."""
+"""atlas/tools/geoposition.py — MCP tool: current city/region/country via GPS or IP geolocation."""
 
 from __future__ import annotations
 
@@ -15,11 +15,11 @@ mcp = FastMCP(name="geoposition")
 
 @mcp.tool()
 def get_current_place() -> str:
-    """Return the current city, region, and country using macOS CoreLocation.
+    """Return the current city, region, and country.
 
-    Uses the device GPS/Wi-Fi fix (accurate) and an offline GeoNames reverse
-    geocoding database (no internet required after install).  Returns an error
-    string if CoreLocation permission is denied or the fix times out.
+    On macOS uses CoreLocation (GPS/Wi-Fi fix, accurate).
+    On other platforms falls back to ip-api.com (IP-based, approximate).
+    Place name resolved via offline GeoNames reverse geocoding.
 
     Example output: ``Lyon, Auvergne-Rhône-Alpes, FR``
     """

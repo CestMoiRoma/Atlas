@@ -95,7 +95,9 @@ def _check_whisper_bin(config: Config) -> CheckResult:
         return CheckResult("whisper-cli binary", True, True, f"found at {found}")
     return CheckResult(
         "whisper-cli binary", False, True,
-        f"{config.whisper_bin!r} not found in PATH — run: brew install whisper-cpp",
+        f"{config.whisper_bin!r} not found in PATH — "
+        f"macOS: brew install whisper-cpp  |  Linux/Windows: build from source "
+        f"https://github.com/ggerganov/whisper.cpp",
     )
 
 

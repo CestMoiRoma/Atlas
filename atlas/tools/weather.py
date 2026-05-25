@@ -73,9 +73,10 @@ def _fetch_forecast(lat: float, lon: float) -> str:
 
 @mcp.tool()
 def get_local_weather() -> str:
-    """Return the current weather at the user's actual location via macOS CoreLocation.
+    """Return the current weather at the user's location.
 
-    Uses a real GPS/Wi-Fi fix (accurate) rather than IP geolocation.
+    On macOS uses CoreLocation (GPS/Wi-Fi fix, accurate).
+    On other platforms falls back to ip-api.com (IP-based, approximate).
     Weather data comes from Open-Meteo (no API key required).
     Temperature unit follows the ``TEMPERATURE_UNIT`` env variable (``C`` or ``F``).
 

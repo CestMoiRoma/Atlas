@@ -8,6 +8,9 @@
 > Local-first, modular AI voice assistant. No cloud. No subscriptions.  
 > Your personal assistant — who knows you, and remembers everything.
 
+> [!NOTE]
+> Originally built for macOS. Tries to be OS-neutral — Windows and Linux support is best-effort, use at your own risk.
+
 ---
 
 ## Stack
