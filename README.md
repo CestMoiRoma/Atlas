@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![macOS](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey.svg)](https://www.apple.com/macos/)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)](https://github.com/CestMoiRoma/Atlas)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 > Local-first, modular AI voice assistant. No cloud. No subscriptions.  
@@ -16,7 +16,7 @@
 |-------|-----------|
 | **LLM** | [Ollama](https://ollama.ai) — local inference, any compatible model |
 | **STT** | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) — offline transcription |
-| **TTS** | macOS `say` — zero-latency native synthesis |
+| **TTS** | `say` (macOS) · `espeak-ng/espeak/spd-say` (Linux) · SAPI5 via PowerShell (Windows) |
 | **Wake word** | [livekit-wakeword](https://github.com/livekit/pipecat) — Atlas.onnx (97 KB, custom model) |
 | **Speaker ID** | [SpeechBrain](https://speechbrain.github.io) ECAPA-TDNN — cosine similarity |
 | **Tools** | [FastMCP](https://github.com/jlowin/fastmcp) stdio servers — 7 built-in tools |
@@ -45,7 +45,7 @@
                                               │       │ final reply     │
                                               └───────┼────────────────┘
                                                       │
-                                               TTS (say)  +  SessionLog
+                                               TTS  +  SessionLog
 ```
 
 ---
@@ -82,7 +82,7 @@ python scripts/download_models.py
 
 ```bash
 cp .env.example .env
-# Set ATLAS_VAULT_PATH, WHISPER_MODEL_PATH, and WAKE_WORD_MODEL_PATHS
+# Required: ATLAS_VAULT_PATH, WHISPER_CPP_MODEL, WAKE_WORD_MODELS
 ```
 
 **5. Register yourself and start**
@@ -116,11 +116,11 @@ Say **"Atlas"** to wake it up.
 - Wikilinks between notes — knowledge graph grows over time
 
 ### 🔧 Modular Tools (MCP)
-- `datetime` — current date and time in French
-- `geoposition` — location via ip-api.com
-- `weather` — Open-Meteo + geocoding, WMO codes in French
+- `datetime` — current date and time (`TIME_FORMAT`: 24h or 12h AM/PM)
+- `geoposition` — GPS/Wi-Fi fix via CoreLocation (macOS), falls back to ip-api.com on other platforms
+- `weather` — Open-Meteo + reverse geocoding, WMO codes (`TEMPERATURE_UNIT`: °C or °F)
 - `metrics` — CPU, RAM, disk via psutil
-- `wikipedia` — French Wikipedia REST API
+- `wikipedia` — Wikipedia REST API (`WIKIPEDIA_LANGUAGE`: any edition, e.g. `en`, `fr`, `de`)
 - `memory` — vault read/write/patch/link/delete/append
 - `inbox` — read `.txt`, `.md`, `.json`, `.csv`, `.drawio` files
 
