@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -47,7 +46,19 @@ class WakeWordListener:
         self._models: list[Path] = config.wake_word_models
         self._threshold: float = config.wake_word_threshold
         self._debounce: float = config.wake_word_debounce
-        self._last_fired: float = 0.0
+        self._ww_model: object = None  # WakeWordModel, loaded lazily
+
+    async def _get_model(self) -> object:
+        """Load the WakeWordModel once, reuse on subsequent calls."""
+        if self._ww_model is None:
+            from livekit.wakeword import WakeWordModel  # type: ignore[import]
+
+            model_strs = [str(m) for m in self._models]
+            logger.info("Loading wake word model(s): %s", model_strs)
+            self._ww_model = await asyncio.to_thread(
+                WakeWordModel, models=model_strs
+            )
+        return self._ww_model
 
     async def listen(self) -> AsyncIterator[str]:
         """Async generator that yields the keyword string on each detection.
@@ -59,26 +70,26 @@ class WakeWordListener:
                 await handle_activation(keyword)
                 break  # re-enters listen() on the next loop iteration
         """
-        from livekit.plugins.wakeword import WakeWordDetector  # type: ignore[import]
+        from livekit.wakeword import WakeWordListener as _LiveKitListener  # type: ignore[import]
 
-        model_strs = [str(m) for m in self._models]
-        logger.info("Wake word listener starting — models=%s  threshold=%.2f",
-                    model_strs, self._threshold)
-
-        detector = WakeWordDetector(
-            models=model_strs,
-            threshold=self._threshold,
+        model = await self._get_model()
+        logger.info(
+            "Wake word listener starting — models=%s  threshold=%.2f",
+            [str(m) for m in self._models],
+            self._threshold,
         )
 
-        async for event in detector.stream():
-            now = time.monotonic()
-            if now - self._last_fired < self._debounce:
-                logger.debug("Wake word debounced — %.2fs since last fire", now - self._last_fired)
-                continue
-            self._last_fired = now
-            keyword: str = getattr(event, "keyword", "atlas")
-            logger.info("Wake word detected: %r", keyword)
-            yield keyword
-            # Pause briefly so the caller can break the inner loop before the
-            # generator resumes and potentially fires again.
-            await asyncio.sleep(0)
+        async with _LiveKitListener(
+            model,  # type: ignore[arg-type]
+            threshold=self._threshold,
+            debounce=self._debounce,
+        ) as listener:
+            while True:
+                detection = await listener.wait_for_detection()
+                keyword: str = getattr(detection, "name", "atlas")
+                logger.info(
+                    "Wake word detected: %r (confidence=%.2f)",
+                    keyword,
+                    getattr(detection, "confidence", 0.0),
+                )
+                yield keyword
