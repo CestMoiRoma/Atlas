@@ -4,16 +4,29 @@
 from __future__ import annotations
 
 import logging
+import os
 import urllib.parse
 
 import httpx
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP  # type: ignore[import]
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 mcp = FastMCP(name="wikipedia")
 
-_API = "https://en.wikipedia.org/api/rest_v1"
-_SEARCH_API = "https://en.wikipedia.org/w/api.php"
+
+def _api_base() -> tuple[str, str]:
+    """Return (REST_API_base, search_API_base) for the configured language.
+
+    Reads ``WIKIPEDIA_LANGUAGE`` from the environment (default: ``en``).
+    Any valid BCP-47 language code accepted by Wikipedia works:
+    ``en``, ``fr``, ``es``, ``de``, ``ja``, etc.
+    """
+    lang = os.getenv("WIKIPEDIA_LANGUAGE", "en").lower().strip() or "en"
+    base = f"https://{lang}.wikipedia.org"
+    return f"{base}/api/rest_v1", f"{base}/w/api.php"
 
 
 @mcp.tool()
@@ -29,6 +42,7 @@ def wikipedia_search(query: str) -> str:
     Returns:
         Up to 5 results, each with its title and a short text snippet.
     """
+    _, search_api = _api_base()
     try:
         params = {
             "action": "query",
@@ -38,7 +52,7 @@ def wikipedia_search(query: str) -> str:
             "format": "json",
             "utf8": 1,
         }
-        resp = httpx.get(_SEARCH_API, params=params, timeout=8.0)
+        resp = httpx.get(search_api, params=params, timeout=8.0)
         resp.raise_for_status()
         data = resp.json()
         results = data.get("query", {}).get("search", [])
@@ -48,7 +62,11 @@ def wikipedia_search(query: str) -> str:
         lines: list[str] = []
         for r in results:
             title = r["title"]
-            snippet = r.get("snippet", "").replace("<span class=\"searchmatch\">", "").replace("</span>", "")
+            snippet = (
+                r.get("snippet", "")
+                .replace('<span class="searchmatch">', "")
+                .replace("</span>", "")
+            )
             lines.append(f"• {title} — {snippet[:120]}")
         return "\n".join(lines)
     except Exception as exc:
@@ -67,10 +85,11 @@ def wikipedia_summary(title: str) -> str:
         First two paragraphs of the article introduction, plain text, no markup.
         Capped at ~500 characters for comfortable TTS output.
     """
+    rest_api, _ = _api_base()
     try:
         encoded = urllib.parse.quote(title.replace(" ", "_"))
         resp = httpx.get(
-            f"{_API}/page/summary/{encoded}",
+            f"{rest_api}/page/summary/{encoded}",
             headers={"Accept": "application/json"},
             timeout=8.0,
         )

@@ -10,6 +10,8 @@ import httpx
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP  # type: ignore[import]
 
+from atlas.tools._location import get_mac_coordinates, reverse_geocode
+
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -17,7 +19,6 @@ mcp = FastMCP(name="weather")
 
 _GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 _FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-_IP_API_URL = "http://ip-api.com/json/"
 
 # WMO weather interpretation codes → English descriptions
 _WMO: dict[int, str] = {
@@ -72,20 +73,20 @@ def _fetch_forecast(lat: float, lon: float) -> str:
 
 @mcp.tool()
 def get_local_weather() -> str:
-    """Return the current weather at the user's approximate location (via IP).
+    """Return the current weather at the user's location.
 
-    Uses Open-Meteo (no API key required). Temperature unit follows
-    the ``TEMPERATURE_UNIT`` env variable (``C`` or ``F``).
+    On macOS uses CoreLocation (GPS/Wi-Fi fix, accurate).
+    On other platforms falls back to ip-api.com (IP-based, approximate).
+    Weather data comes from Open-Meteo (no API key required).
+    Temperature unit follows the ``TEMPERATURE_UNIT`` env variable (``C`` or ``F``).
 
-    Example output: ``Partly cloudy, 18°C (feels like 16°C), wind 12 km/h``
+    Example output: ``Lyon — Partly cloudy, 18°C (feels like 16°C), wind 12 km/h``
     """
     try:
-        geo = httpx.get(_IP_API_URL, timeout=5.0).json()
-        lat = float(geo["lat"])
-        lon = float(geo["lon"])
-        city = geo.get("city", "")
+        lat, lon = get_mac_coordinates()
+        place = reverse_geocode(lat, lon)
         result = _fetch_forecast(lat, lon)
-        return f"{city} — {result}" if city else result
+        return f"{place} — {result}"
     except Exception as exc:
         logger.warning("Local weather failed: %s", exc)
         return f"[Weather unavailable: {exc}]"
@@ -101,7 +102,7 @@ def get_city_weather(city: str) -> str:
     Temperature unit follows the ``TEMPERATURE_UNIT`` env variable
     (``C`` or ``F``).
 
-    Example output: ``Paris — Overcast, 12°C (feels like 9°C), wind 20 km/h``
+    Example output: ``Paris, Île-de-France, FR — Overcast, 12°C (feels like 9°C), wind 20 km/h``
     """
     try:
         geo_resp = httpx.get(

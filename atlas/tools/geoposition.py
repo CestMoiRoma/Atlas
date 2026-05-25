@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""atlas/tools/geoposition.py — MCP tool: current city/country via IP geolocation."""
+"""atlas/tools/geoposition.py — MCP tool: current city/region/country via GPS or IP geolocation."""
 
 from __future__ import annotations
 
 import logging
 
-import httpx
 from mcp.server.fastmcp import FastMCP  # type: ignore[import]
+
+from atlas.tools._location import get_mac_coordinates, reverse_geocode
 
 logger = logging.getLogger(__name__)
 mcp = FastMCP(name="geoposition")
@@ -14,20 +15,17 @@ mcp = FastMCP(name="geoposition")
 
 @mcp.tool()
 def get_current_place() -> str:
-    """Return the current city and country based on the public IP address.
+    """Return the current city, region, and country.
 
-    Uses the ip-api.com free endpoint (no API key required).  Returns an
-    error string if the request fails or times out.
+    On macOS uses CoreLocation (GPS/Wi-Fi fix, accurate).
+    On other platforms falls back to ip-api.com (IP-based, approximate).
+    Place name resolved via offline GeoNames reverse geocoding.
 
-    Example output: ``Lyon, France``
+    Example output: ``Lyon, Auvergne-Rhône-Alpes, FR``
     """
     try:
-        resp = httpx.get("http://ip-api.com/json/", timeout=5.0)
-        resp.raise_for_status()
-        data = resp.json()
-        city = data.get("city", "?")
-        country = data.get("country", "?")
-        return f"{city}, {country}"
+        lat, lon = get_mac_coordinates()
+        return reverse_geocode(lat, lon)
     except Exception as exc:
         logger.warning("Geolocation failed: %s", exc)
         return f"[Geolocation unavailable: {exc}]"

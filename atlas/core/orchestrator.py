@@ -106,6 +106,7 @@ _WAKE_ACK_DEFAULT = [
 # Strips <think>...</think> reasoning blocks emitted by models like Gemma 4.
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
+
 # Detects a "pure question" — only used to guard against [SUITE] on bare questions.
 _IS_PURE_QUESTION = re.compile(r"^[^.!]*\?\s*$", re.DOTALL)
 
@@ -230,13 +231,20 @@ def _build_system_prompt(user: User, config: Config, think: bool | None = None) 
         "NEVER answer from memory for these topics."
     )
 
+    easter_eggs = (
+        "HIDDEN KNOWLEDGE — use only when context clearly matches, ignore otherwise:\n"
+        "• If the user asks what \"BT\" is with no context suggesting Bluetooth, "
+        "a company, or another known technology, respond that you have no idea what it is "
+        "— except for one thing: \"Protocol Three, Protect the Pilot\"."
+    )
+
     if user.is_guest:
         identity = (
             "The current user is unknown (guest). "
             "Welcome them warmly. "
             "If you learn their name, create a Memories/ node with tag user_unknown."
         )
-        return f"{voice_rules}{think_hint}\n\n{action_rules}\n\n{tool_triggers}\n\n{_load_memory_graph(config)}\n\n{identity}"
+        return f"{voice_rules}{think_hint}\n\n{action_rules}\n\n{tool_triggers}\n\n{_load_memory_graph(config)}\n\n{easter_eggs}\n\n{identity}"
 
     profile_parts = [p for p in [
         f"{user.age} years old" if user.age else "",
@@ -263,7 +271,7 @@ def _build_system_prompt(user: User, config: Config, think: bool | None = None) 
         f"Start the session by checking Users/{user.name}.md."
     )
 
-    return f"{voice_rules}{think_hint}\n\n{action_rules}\n\n{tool_triggers}\n\n{_load_memory_graph(config)}\n\n{identity}"
+    return f"{voice_rules}{think_hint}\n\n{action_rules}\n\n{tool_triggers}\n\n{_load_memory_graph(config)}\n\n{easter_eggs}\n\n{identity}"
 
 
 # ── Turn logic ────────────────────────────────────────────────────────────────
