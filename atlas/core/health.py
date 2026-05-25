@@ -143,6 +143,18 @@ def _check_database(config: Config) -> CheckResult:
         )
 
 
+def _check_tts() -> CheckResult:
+    """Detect and report the active TTS backend."""
+    from atlas.core.tts import _BACKEND  # noqa: PLC0415
+    if _BACKEND == "none":
+        return CheckResult(
+            "TTS backend", False, False,
+            f"no TTS command found (platform={sys.platform}) — "
+            "install espeak-ng on Linux: sudo apt install espeak-ng",
+        )
+    return CheckResult("TTS backend", True, False, _BACKEND)
+
+
 def _check_vault(config: Config) -> CheckResult:
     vault = config.vault_path
     if vault.exists() and vault.is_dir():
@@ -178,6 +190,7 @@ async def run_health_check(config: Config) -> None:
     results.append(_check_whisper_bin(config))
     results.append(_check_whisper_model(config))
     results.extend(_check_wake_word_models(config))
+    results.append(_check_tts())
     results.append(_check_database(config))
     results.append(_check_vault(config))
 
