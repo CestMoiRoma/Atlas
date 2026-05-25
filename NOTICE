@@ -1,0 +1,87 @@
+Atlas
+Copyright (C) 2026 CestMoiRoma
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+-------------------------------------------------------------------------------
+Third-party components used by Atlas and their respective licences:
+-------------------------------------------------------------------------------
+
+ollama (Python client)
+  Licence : MIT
+  Source  : https://github.com/ollama/ollama-python
+
+mcp (Model Context Protocol SDK)
+  Licence : MIT
+  Source  : https://github.com/modelcontextprotocol/python-sdk
+
+livekit-wakeword
+  Licence : Apache License 2.0
+  Source  : https://github.com/livekit/livekit-wakeword
+
+SpeechBrain (ECAPA-TDNN speaker encoder)
+  Licence : Apache License 2.0
+  Source  : https://github.com/speechbrain/speechbrain
+  Model   : speechbrain/spkrec-ecapa-voxceleb (HuggingFace)
+
+sounddevice
+  Licence : MIT
+  Source  : https://github.com/spatialaudio/python-sounddevice
+
+soundfile
+  Licence : BSD 3-Clause
+  Source  : https://github.com/bastibe/python-soundfile
+
+NumPy
+  Licence : BSD 3-Clause
+  Source  : https://github.com/numpy/numpy
+
+httpx
+  Licence : BSD 3-Clause
+  Source  : https://github.com/encode/httpx
+
+python-dotenv
+  Licence : BSD 3-Clause
+  Source  : https://github.com/theskumar/python-dotenv
+
+psutil
+  Licence : BSD 3-Clause
+  Source  : https://github.com/giampaolo/psutil
+
+pyobjc-framework-CoreLocation
+  Licence : MIT
+  Source  : https://github.com/ronaldoussoren/pyobjc
+
+reverse_geocoder
+  Licence : MIT
+  Source  : https://github.com/thampiman/reverse-geocoder
+
+anyio
+  Licence : MIT
+  Source  : https://github.com/agronholm/anyio
+
+tqdm
+  Licence : MIT / MPL 2.0
+  Source  : https://github.com/tqdm/tqdm
+
+-------------------------------------------------------------------------------
+External tools invoked at runtime (not distributed with Atlas):
+-------------------------------------------------------------------------------
+
+Ollama
+  Licence : MIT
+  Source  : https://github.com/ollama/ollama
+
+whisper.cpp (whisper-cli binary)
+  Licence : MIT
+  Source  : https://github.com/ggerganov/whisper.cpp
+
+macOS `say` command
+  Part of macOS — Apple Inc.

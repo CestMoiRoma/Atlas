@@ -1,0 +1,74 @@
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+.Python
+pip-wheel-metadata/
+MANIFEST
+
+# ─── Virtual environments ─────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─── Environment / secrets ────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── Models (heavy weights — downloaded at setup, never committed) ────────────
+# Atlas.onnx IS tracked (lightweight ~2 MB wakeword asset)
+models/spkrec-ecapa-voxceleb/
+models/*.bin
+models/*.ggml
+models/*.gguf
+# whisper models downloaded by the user
+*.bin
+
+# ─── Runtime data (user-specific, never committed) ───────────────────────────
+atlas_memory/
+atlas_inbox/
+user_voice_templates/
+*.db
+*.db-shm
+*.db-wal
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+*.log.*
+logs/
+
+# ─── macOS ────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ─── IDE / editors ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.claude/
+
+# ─── Testing & coverage ───────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ─── Type checking ────────────────────────────────────────────────────────────
+.mypy_cache/
+.ruff_cache/
