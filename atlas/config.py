@@ -201,6 +201,32 @@ class Config:
     nothink: bool = False
     think_depth: str = "moderate"
 
+    # ── Personalization ───────────────────────────────────────────────────────
+    #: Language injected into the voice-rules system prompt ("English", "French", …)
+    response_language: str = "English"
+    #: Extra instructions appended verbatim after the default voice rules.
+    voice_rules_extra: str = ""
+    #: Phrases Atlas speaks at random upon wake-word detection.
+    wake_ack_phrases: list[str] = field(
+        default_factory=lambda: [
+            "Yes?", "Listening.", "Yes, go ahead.", "Here.", "I'm listening.",
+        ]
+    )
+    #: Message spoken when the tool-call loop cap is hit.
+    atlas_loop_message: str = "I seem to be stuck in a loop. Could you rephrase that?"
+    #: Message spoken on an unrecoverable LLM response error.
+    atlas_error_message: str = "Sorry, I couldn't process that request."
+    #: Message spoken when Atlas enters sleeping mode.
+    atlas_sleep_message: str = "Going to sleep."
+    #: Optional path to a file whose content overrides the built-in MEMORY_GRAPH block.
+    memory_graph_file: str = ""
+
+    # ── Display units ─────────────────────────────────────────────────────────
+    #: Clock format used by the datetime tool: ``"24h"`` or ``"12h"``.
+    time_format: str = "24h"
+    #: Temperature unit used by weather tools: ``"C"`` (Celsius) or ``"F"`` (Fahrenheit).
+    temperature_unit: str = "C"
+
     # ── Derived helpers ───────────────────────────────────────────────────────
 
     def ollama_options_dict(self) -> dict[str, Any]:
@@ -227,6 +253,13 @@ class Config:
 
         wake_word_raw = _get("WAKE_WORD_MODELS", "models/Atlas.onnx")
         wake_word_paths = [Path(p.strip()) for p in wake_word_raw.split(",") if p.strip()]
+
+        _default_wake_ack = ["Yes?", "Listening.", "Yes, go ahead.", "Here.", "I'm listening."]
+        wake_ack_raw = _get("WAKE_ACK_PHRASES")
+        wake_ack_phrases = (
+            [p.strip() for p in wake_ack_raw.split(",") if p.strip()]
+            if wake_ack_raw else _default_wake_ack
+        )
 
         tts_rate_raw = _get("TTS_RATE")
         tts_rate: int | None = None
@@ -283,4 +316,21 @@ class Config:
             # Thinking
             nothink=_get_bool("NOTHINK", False),
             think_depth=_get("THINK_DEPTH", "moderate"),
+            # Personalization
+            response_language=_get("ATLAS_RESPONSE_LANGUAGE", "English"),
+            voice_rules_extra=_get("VOICE_RULES_EXTRA", ""),
+            wake_ack_phrases=wake_ack_phrases,
+            atlas_loop_message=_get(
+                "ATLAS_LOOP_MESSAGE",
+                "I seem to be stuck in a loop. Could you rephrase that?",
+            ),
+            atlas_error_message=_get(
+                "ATLAS_ERROR_MESSAGE",
+                "Sorry, I couldn't process that request.",
+            ),
+            atlas_sleep_message=_get("ATLAS_SLEEP_MESSAGE", "Going to sleep."),
+            memory_graph_file=_get("MEMORY_GRAPH_FILE", ""),
+            # Display units
+            time_format=_get("TIME_FORMAT", "24h"),
+            temperature_unit=_get("TEMPERATURE_UNIT", "C"),
         )

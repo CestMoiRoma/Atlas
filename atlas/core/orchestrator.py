@@ -94,7 +94,8 @@ logger = logging.getLogger(__name__)
 _CONTINUE_SENTINEL = "[SUITE]"
 _QUESTION_SENTINEL_CAP = 3
 
-_WAKE_ACK = [
+# Default wake acknowledgements — overridden at runtime by config.wake_ack_phrases
+_WAKE_ACK_DEFAULT = [
     "Yes?",
     "Listening.",
     "Yes, go ahead.",
@@ -165,15 +166,35 @@ LINKS → Every Memories/ node must wikilink [[Name]] AND [[Topic(s)]] via memor
 """
 
 
+def _load_memory_graph(config: Config) -> str:
+    """Return the memory graph prompt block.
+
+    If ``config.memory_graph_file`` points to an existing file its content is
+    returned verbatim, letting users customise the Obsidian memory instructions
+    without touching source code.  Otherwise the built-in ``_MEMORY_GRAPH``
+    constant is returned.
+    """
+    if config.memory_graph_file:
+        p = Path(config.memory_graph_file)
+        if p.is_file():
+            try:
+                return p.read_text(encoding="utf-8").strip()
+            except OSError as exc:
+                logger.warning("Could not read MEMORY_GRAPH_FILE %s: %s", p, exc)
+    return _MEMORY_GRAPH
+
+
 def _build_system_prompt(user: User, config: Config, think: bool | None = None) -> str:
     """Build a per-turn system prompt tailored to the identified speaker."""
     voice_rules = (
         "You are Atlas, a local AI voice assistant. "
-        "Always respond in English, concisely and naturally for spoken delivery. "
+        f"Always respond in {config.response_language}, concisely and naturally for spoken delivery. "
         "FORBIDDEN: markdown, tables, bullet lists, asterisks, hashes, "
         "list dashes, code blocks, or any other visual formatting — "
         "you speak, you do not write."
     )
+    if config.voice_rules_extra:
+        voice_rules += " " + config.voice_rules_extra
 
     think_hint = ""
     if think is not False and config.think_depth:
@@ -215,7 +236,7 @@ def _build_system_prompt(user: User, config: Config, think: bool | None = None) 
             "Welcome them warmly. "
             "If you learn their name, create a Memories/ node with tag user_unknown."
         )
-        return f"{voice_rules}{think_hint}\n\n{action_rules}\n\n{tool_triggers}\n\n{_MEMORY_GRAPH}\n\n{identity}"
+        return f"{voice_rules}{think_hint}\n\n{action_rules}\n\n{tool_triggers}\n\n{_load_memory_graph(config)}\n\n{identity}"
 
     profile_parts = [p for p in [
         f"{user.age} years old" if user.age else "",
@@ -242,7 +263,7 @@ def _build_system_prompt(user: User, config: Config, think: bool | None = None) 
         f"Start the session by checking Users/{user.name}.md."
     )
 
-    return f"{voice_rules}{think_hint}\n\n{action_rules}\n\n{tool_triggers}\n\n{_MEMORY_GRAPH}\n\n{identity}"
+    return f"{voice_rules}{think_hint}\n\n{action_rules}\n\n{tool_triggers}\n\n{_load_memory_graph(config)}\n\n{identity}"
 
 
 # ── Turn logic ────────────────────────────────────────────────────────────────
@@ -316,7 +337,7 @@ async def _run_turn(
 
             if tool_round > config.max_tool_rounds:
                 logger.warning("Tool loop cap (%d) reached — aborting turn", config.max_tool_rounds)
-                await tts.speak("I seem to be stuck in a loop. Could you rephrase that?")
+                await tts.speak(config.atlas_loop_message)
                 return False
 
             logger.info("Tool round %d/%d", tool_round, config.max_tool_rounds)
@@ -413,7 +434,7 @@ async def _run_turn(
 
             if tool_round > config.max_tool_rounds:
                 logger.warning("Continuation loop cap reached — aborting")
-                await tts.speak("I seem to be stuck in a loop. Could you rephrase that?")
+                await tts.speak(config.atlas_loop_message)
                 return False
 
             if speak_text:
@@ -438,7 +459,7 @@ async def _run_turn(
     # Validation guards
     if reply_text.lstrip().startswith("<"):
         logger.warning("Model returned HTML — discarding")
-        await tts.speak("Sorry, I couldn't process that request.")
+        await tts.speak(config.atlas_error_message)
         return False
 
     if not reply_text.strip():
@@ -484,6 +505,7 @@ async def _sleeping_mode_monitor(
     db_conn: Any,
     get_last_activity: Any,
     session_log_ref: list[SessionLog],
+    tts: TTS,
 ) -> None:
     """Background task — re-averages embeddings and rotates session after inactivity."""
     last_ran_for: float = 0.0
@@ -495,6 +517,10 @@ async def _sleeping_mode_monitor(
 
         if idle >= config.sleep_timeout and last_ran_for < last_active:
             logger.info("💤 Sleeping mode — %.0f s idle", idle)
+            try:
+                await tts.speak(config.atlas_sleep_message)
+            except Exception as exc:
+                logger.warning("💤 Sleep message TTS failed: %s", exc)
             try:
                 session_log_ref[0].close()
                 session_log_ref[0] = SessionLog(config)
@@ -553,7 +579,7 @@ async def _main_loop(config: Config, text_mode: bool = False) -> None:
     pending_audio: list[Any] = []
 
     sleep_task = asyncio.create_task(
-        _sleeping_mode_monitor(config, db_conn, lambda: last_activity[0], session_log_ref)
+        _sleeping_mode_monitor(config, db_conn, lambda: last_activity[0], session_log_ref, tts_engine)
     )
 
     bypass_wake_word = False
@@ -577,7 +603,7 @@ async def _main_loop(config: Config, text_mode: bool = False) -> None:
                     else:
                         async for _ in wake_word_listener.listen():
                             break
-                        await tts_engine.speak(random.choice(_WAKE_ACK))
+                        await tts_engine.speak(random.choice(config.wake_ack_phrases))
 
                     # 2. Record utterance
                     if pending_audio:

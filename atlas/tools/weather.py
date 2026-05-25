@@ -4,9 +4,13 @@
 from __future__ import annotations
 
 import logging
+import os
 
 import httpx
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP  # type: ignore[import]
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 mcp = FastMCP(name="weather")
@@ -30,14 +34,25 @@ _WMO: dict[int, str] = {
 
 
 def _fetch_forecast(lat: float, lon: float) -> str:
-    """Fetch current weather for the given coordinates from Open-Meteo."""
-    params = {
+    """Fetch current weather for the given coordinates from Open-Meteo.
+
+    Respects the ``TEMPERATURE_UNIT`` environment variable:
+      - ``"C"`` (default) → Celsius, Open-Meteo default
+      - ``"F"``           → Fahrenheit, passed to Open-Meteo natively
+    """
+    temperature_unit = os.getenv("TEMPERATURE_UNIT", "C").upper()
+    unit_str = "°F" if temperature_unit == "F" else "°C"
+
+    params: dict[str, object] = {
         "latitude": lat,
         "longitude": lon,
         "current": "temperature_2m,apparent_temperature,weathercode,windspeed_10m",
         "wind_speed_unit": "kmh",
         "timezone": "auto",
     }
+    if temperature_unit == "F":
+        params["temperature_unit"] = "fahrenheit"
+
     resp = httpx.get(_FORECAST_URL, params=params, timeout=8.0)
     resp.raise_for_status()
     data = resp.json()
@@ -50,7 +65,7 @@ def _fetch_forecast(lat: float, lon: float) -> str:
     desc = _WMO.get(code, f"code {code}")
 
     return (
-        f"{desc.capitalize()}, {temp}°C (feels like {feels}°C), "
+        f"{desc.capitalize()}, {temp}{unit_str} (feels like {feels}{unit_str}), "
         f"wind {wind} km/h"
     )
 
@@ -59,7 +74,8 @@ def _fetch_forecast(lat: float, lon: float) -> str:
 def get_local_weather() -> str:
     """Return the current weather at the user's approximate location (via IP).
 
-    Uses Open-Meteo (no API key required).
+    Uses Open-Meteo (no API key required). Temperature unit follows
+    the ``TEMPERATURE_UNIT`` env variable (``C`` or ``F``).
 
     Example output: ``Partly cloudy, 18°C (feels like 16°C), wind 12 km/h``
     """
@@ -81,6 +97,9 @@ def get_city_weather(city: str) -> str:
 
     Args:
         city: City name (e.g. ``"Paris"``, ``"Tokyo"``).
+
+    Temperature unit follows the ``TEMPERATURE_UNIT`` env variable
+    (``C`` or ``F``).
 
     Example output: ``Paris — Overcast, 12°C (feels like 9°C), wind 20 km/h``
     """

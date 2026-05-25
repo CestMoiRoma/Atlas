@@ -135,6 +135,37 @@ SLEEP_TIMEOUT=180
 TTS_RATE=
 ```
 
+**Personalisation** — customise Atlas's behaviour without touching source code:
+
+```bash
+# Language Atlas speaks in (injected into system prompt)
+ATLAS_RESPONSE_LANGUAGE=English        # or French, Spanish, German, etc.
+
+# Extra instructions appended to the voice rules
+VOICE_RULES_EXTRA=                     # e.g. "Always keep replies under 2 sentences."
+
+# Comma-separated wake acknowledgement phrases (leave empty for defaults)
+WAKE_ACK_PHRASES=                      # e.g. "Yes?,Ready.,Listening.,Here."
+
+# Override hardcoded Atlas messages
+ATLAS_LOOP_MESSAGE=I seem to be stuck in a loop. Could you rephrase that?
+ATLAS_ERROR_MESSAGE=Sorry, I couldn't process that request.
+ATLAS_SLEEP_MESSAGE=Going to sleep.
+
+# Path to a file that replaces the built-in Obsidian memory graph instructions
+MEMORY_GRAPH_FILE=                     # leave empty to use defaults
+```
+
+**Display units:**
+
+```bash
+# Clock format: "24h" (14:32:07) or "12h" (02:32:07 PM)
+TIME_FORMAT=24h
+
+# Temperature unit: "C" (Celsius) or "F" (Fahrenheit)
+TEMPERATURE_UNIT=C
+```
+
 ---
 
 ## 4. Registering a user
