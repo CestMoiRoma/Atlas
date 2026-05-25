@@ -226,6 +226,8 @@ class Config:
     time_format: str = "24h"
     #: Temperature unit used by weather tools: ``"C"`` (Celsius) or ``"F"`` (Fahrenheit).
     temperature_unit: str = "C"
+    #: BCP-47 language code for the Wikipedia subdomain (``"en"``, ``"fr"``, ``"es"``…).
+    wikipedia_language: str = "en"
 
     # ── Derived helpers ───────────────────────────────────────────────────────
 
@@ -333,4 +335,5 @@ class Config:
             # Display units
             time_format=_get("TIME_FORMAT", "24h"),
             temperature_unit=_get("TEMPERATURE_UNIT", "C"),
+            wikipedia_language=_get("WIKIPEDIA_LANGUAGE", "en"),
         )
