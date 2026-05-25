@@ -1,60 +1,59 @@
-# Manuel Utilisateur Atlas
+# User Manual
 
-Atlas est un assistant vocal IA local-first pour macOS — entièrement hors ligne
-après la configuration initiale. Ce guide couvre l'installation, la configuration,
-et l'utilisation quotidienne.
+Atlas is a local-first AI voice assistant for macOS — fully offline after initial
+configuration. This guide covers installation, configuration, and everyday use.
 
 ---
 
-## Table des matières
+## Table of contents
 
-1. [Prérequis système](#1-prérequis-système)
+1. [System requirements](#1-system-requirements)
 2. [Installation](#2-installation)
-3. [Configuration `.env`](#3-configuration-env)
-4. [Inscription d'un utilisateur](#4-inscription-dun-utilisateur)
-5. [Démarrer Atlas](#5-démarrer-atlas)
-6. [Options de la ligne de commande](#6-options-de-la-ligne-de-commande)
-7. [Commandes vocales et mémoire](#7-commandes-vocales-et-mémoire)
-8. [Scripts utilitaires](#8-scripts-utilitaires)
+3. [`.env` configuration](#3-env-configuration)
+4. [Registering a user](#4-registering-a-user)
+5. [Starting Atlas](#5-starting-atlas)
+6. [Command-line options](#6-command-line-options)
+7. [Voice commands and memory](#7-voice-commands-and-memory)
+8. [Utility scripts](#8-utility-scripts)
 9. [FAQ](#9-faq)
 
 ---
 
-## 1. Prérequis système
+## 1. System requirements
 
-| Composant | Requis | Notes |
-|-----------|--------|-------|
-| macOS | 13 Ventura ou supérieur | Requis pour `say`, CoreLocation, PortAudio |
-| Python | 3.10+ | Disponible via Homebrew (`brew install python@3.12`) |
-| Ollama | Dernière version | [ollama.ai](https://ollama.ai) — tourne en arrière-plan |
-| whisper.cpp | `whisper-cli` dans `$PATH` | Voir §2.4 |
-| PortAudio | — | `brew install portaudio` — requis par `sounddevice` |
-| Disk | ~1.5 GB minimum | Modèles Whisper (~800 MB) + SpeechBrain (~80 MB) |
-| RAM | 8 GB recommandé | Pour Ollama + modèle Whisper en mémoire simultanément |
+| Component | Required | Notes |
+|-----------|---------|-------|
+| macOS | 13 Ventura or later | Required for `say`, CoreLocation, PortAudio |
+| Python | 3.10+ | Available via Homebrew (`brew install python@3.12`) |
+| Ollama | Latest | [ollama.ai](https://ollama.ai) — runs in background |
+| whisper.cpp | `whisper-cli` in `$PATH` | See §2.4 |
+| PortAudio | — | `brew install portaudio` — required by `sounddevice` |
+| Disk | ~1.5 GB minimum | Whisper models (~800 MB) + SpeechBrain (~80 MB) |
+| RAM | 8 GB recommended | For Ollama + Whisper model in memory simultaneously |
 
 ---
 
 ## 2. Installation
 
-### 2.1 Installer les dépendances système
+### 2.1 Install system dependencies
 
 ```bash
-# Homebrew requis — https://brew.sh
+# Homebrew required — https://brew.sh
 brew install python@3.12 portaudio
 ```
 
-### 2.2 Installer Ollama et télécharger un modèle LLM
+### 2.2 Install Ollama and download an LLM
 
 ```bash
-# Installer Ollama (téléchargeur macOS sur ollama.ai)
-# Puis démarrer le serveur :
+# Install Ollama (macOS installer at ollama.ai)
+# Then start the server:
 ollama serve &
 
-# Télécharger le modèle de langage (ex: llama3.2 ~2 GB)
+# Download a language model (e.g. llama3.2 ~2 GB)
 ollama pull llama3.2
 ```
 
-### 2.3 Installer Atlas
+### 2.3 Install Atlas
 
 ```bash
 git clone https://github.com/CestMoiRoma/Atlas.git
@@ -64,339 +63,339 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-### 2.4 Installer whisper.cpp
+### 2.4 Install whisper.cpp
 
 ```bash
 git clone https://github.com/ggerganov/whisper.cpp.git
 cd whisper.cpp
 cmake -B build && cmake --build build --config Release -j
-# Copier l'exécutable dans $PATH :
+# Copy the binary to $PATH:
 cp build/bin/whisper-cli /usr/local/bin/whisper-cli
 ```
 
-Télécharger un modèle Whisper GGML (ex: `base` pour un bon équilibre vitesse/qualité) :
+Download a Whisper GGML model (e.g. `base` for a good speed/quality balance):
 
 ```bash
-# Depuis la racine de whisper.cpp :
+# From the whisper.cpp root:
 bash models/download-ggml-model.sh base
-# → Fichier : models/ggml-base.bin (~142 MB)
+# → File: models/ggml-base.bin (~142 MB)
 ```
 
-### 2.5 Télécharger les modèles Atlas
+### 2.5 Download Atlas models
 
 ```bash
-# Depuis la racine du repo Atlas, avec .venv activé :
+# From the Atlas repo root, with .venv activated:
 python scripts/download_models.py
 ```
 
-Télécharge automatiquement SpeechBrain ECAPA-TDNN (~80 MB) dans
+Automatically downloads SpeechBrain ECAPA-TDNN (~80 MB) into
 `models/spkrec-ecapa-voxceleb/`.
 
 ---
 
-## 3. Configuration `.env`
+## 3. `.env` configuration
 
 ```bash
 cp .env.example .env
 ```
 
-Éditer `.env` — variables **obligatoires** :
+Edit `.env` — **required** variables:
 
 ```bash
-# Vault Obsidian — dossier Markdown où Atlas stocke sa mémoire
-ATLAS_VAULT_PATH=/Users/toi/Documents/atlas_memory
+# Obsidian vault — Markdown directory where Atlas stores its memory
+ATLAS_VAULT_PATH=/Users/you/Documents/atlas_memory
 
-# Modèle Whisper GGML (chemin absolu recommandé)
-WHISPER_MODEL_PATH=/Users/toi/whisper.cpp/models/ggml-base.bin
+# Whisper GGML model (absolute path recommended)
+WHISPER_CPP_MODEL=/Users/you/whisper.cpp/models/ggml-base.bin
 
-# Modèle wakeword (déjà dans le repo)
-WAKE_WORD_MODEL_PATHS=models/Atlas.onnx
+# Wake word model (already in the repo)
+WAKE_WORD_MODELS=models/Atlas.onnx
 ```
 
-Variables **optionnelles** fréquemment personnalisées :
+**Optional** variables commonly customised:
 
 ```bash
-# Modèle Ollama à utiliser
-OLLAMA_MODEL=llama3.2           # ou llama3.1, mistral, gemma2:9b, etc.
+# Ollama model to use
+OLLAMA_MODEL=llama3.2           # or llama3.1, mistral, gemma2:9b, etc.
 
-# Langue de transcription Whisper
-WHISPER_LANGUAGE=fr             # fr, en, es, de, ...
+# Transcription language
+WHISPER_CPP_LANGUAGE=en         # en, fr, es, de, ...
 
-# Seuil de filtrage des transcriptions fantômes (0.0 à 1.0)
-# Plus élevé = moins filtrant. 0.6 est un bon défaut.
+# Phantom transcription filter threshold (0.0 to 1.0)
+# Higher = less filtering. 0.6 is a good default.
 WHISPER_NO_SPEECH_THRESHOLD=0.6
 
-# Timeout des outils MCP en secondes
+# MCP tool timeout in seconds
 MCP_TOOL_TIMEOUT=10.0
 
-# Durée d'inactivité avant mise en veille (secondes)
-SLEEPING_TIMEOUT=300
+# Inactivity duration before sleep mode (seconds)
+SLEEP_TIMEOUT=180
 
-# Vitesse de synthèse vocale (mots/minute, vide = défaut système)
+# Speech synthesis speed (words/minute, empty = system default)
 TTS_RATE=
 ```
 
 ---
 
-## 4. Inscription d'un utilisateur
+## 4. Registering a user
 
-Atlas identifie les locuteurs par leur voix (ECAPA-TDNN). Il faut enregistrer
-au moins un utilisateur pour qu'Atlas sache comment s'adresser à toi.
+Atlas identifies speakers by voice (ECAPA-TDNN). You need to register at least
+one user so Atlas knows how to address you.
 
 ```bash
 python scripts/register_user.py \
   --name "Roma" \
   --age 28 \
   --gender M \
-  --profession "Développeur" \
-  --preferred-address "chef"
+  --profession "Developer" \
+  --preferred-address "chief"
 ```
 
-Le script enregistre **5 extraits vocaux de 4 secondes** chacun (des pauses entre chaque).
-Parle normalement pendant l'enregistrement — aucun contenu spécifique n'est requis.
+The script records **5 voice clips of 4 seconds** each (with pauses between).
+Speak naturally during recording — no specific content required.
 
-**Options disponibles :**
+**Available options:**
 
 | Option | Description |
 |--------|-------------|
-| `--name` | Nom complet (obligatoire) |
-| `--age` | Âge (optionnel) |
-| `--gender` | Genre : M, F, ou libre |
-| `--profession` | Profession (optionnel) |
-| `--preferred-address` | Comment Atlas doit t'appeler |
-| `--update` | Met à jour le profil sans ré-enregistrer la voix |
-| `--re-record` | Re-enregistre les samples vocaux |
+| `--name` | Full name (required) |
+| `--age` | Age (optional) |
+| `--gender` | Gender: M, F, or free text |
+| `--profession` | Occupation (optional) |
+| `--preferred-address` | How Atlas should address you |
+| `--update` | Update profile without re-recording voice |
+| `--re-record` | Re-record voice samples |
 
-**Modifier un profil existant :**
+**Edit an existing profile:**
 
 ```bash
 python scripts/edit_user.py --name "Roma" --profession "CTO"
 
-# Lister tous les utilisateurs :
+# List all users:
 python scripts/edit_user.py --list
 ```
 
 ---
 
-## 5. Démarrer Atlas
+## 5. Starting Atlas
 
-### Prérequis avant démarrage
+### Prerequisites before starting
 
 ```bash
-# 1. Ollama doit tourner
+# 1. Ollama must be running
 ollama serve &
 
-# 2. Activer l'environnement Python
+# 2. Activate the Python environment
 source .venv/bin/activate
 ```
 
-### Démarrage standard
+### Standard start
 
 ```bash
 python -m atlas.core.orchestrator
 ```
 
-ou via l'entry point installé :
+or via the installed entry point:
 
 ```bash
 atlas
 ```
 
-Atlas affiche le résultat du health check, puis attend le wakeword.
+Atlas displays the health check result, then waits for the wake word.
 
-**Dire "Atlas"** (ou le wakeword configuré) pour démarrer une interaction.
+**Say "Atlas"** (or the configured wake word) to start an interaction.
 
-### Arrêt propre
+### Clean shutdown
 
-`Ctrl+C` — Atlas ferme la session en cours et quitte proprement.
+`Ctrl+C` — Atlas closes the current session and exits cleanly.
 
 ---
 
-## 6. Options de la ligne de commande
+## 6. Command-line options
 
-### `--check` — Health check uniquement
+### `--check` — Health check only
 
 ```bash
 python -m atlas.core.orchestrator --check
 ```
 
-Vérifie toutes les dépendances et quitte. Utile pour diagnostiquer des problèmes
-sans démarrer le pipeline complet.
+Checks all dependencies and exits. Useful for diagnosing problems
+without starting the full pipeline.
 
-### `--text` — Mode texte (debug / scripting)
+### `--text` — Text mode (debug / scripting)
 
 ```bash
-# Interaction simple
-echo "Quelle heure est-il ?" | python -m atlas.core.orchestrator --text
+# Single interaction
+echo "What time is it?" | python -m atlas.core.orchestrator --text
 
-# Session interactive
+# Interactive session
 python -m atlas.core.orchestrator --text
-# → Taper les questions, une par ligne, Ctrl+D pour quitter
+# → Type questions, one per line, Ctrl+D to quit
 ```
 
-Bypass total du wakeword et de la STT — idéal pour tester des prompts ou déboguer
-les outils MCP sans microphone.
+Completely bypasses wake word and STT — ideal for testing prompts or debugging
+MCP tools without a microphone.
 
-### `--nothink` — Désactiver les tokens de réflexion
+### `--nothink` — Disable thinking tokens
 
 ```bash
 python -m atlas.core.orchestrator --nothink
 ```
 
-Désactive les tokens `<think>` d'Ollama (si supportés par le modèle). Réduit la
-latence au détriment d'un raisonnement moins structuré.
+Disables Ollama's `<think>` tokens (if supported by the model). Reduces
+latency at the cost of less structured reasoning.
 
 ---
 
-## 7. Commandes vocales et mémoire
+## 7. Voice commands and memory
 
-### Interaction naturelle
+### Natural interaction
 
-Atlas est conçu pour le français. Pas de syntaxe spéciale — parle normalement :
+Atlas is designed for natural conversation. No special syntax — just speak:
 
-> *"Atlas, c'est quoi la météo à Lyon ?"*  
-> *"Atlas, note que le déploiement est prévu pour vendredi."*  
-> *"Atlas, qu'est-ce que tu sais sur Python ?"*
+> *"Atlas, what's the weather in London?"*  
+> *"Atlas, note that the deployment is scheduled for Friday."*  
+> *"Atlas, what do you know about Python?"*
 
-### Outils disponibles
+### Available tools
 
-| Outil | Exemples de déclencheurs |
-|-------|-------------------------|
-| `datetime` | "quelle heure", "quel jour", "quelle date" |
-| `geoposition` | "où suis-je", "ma localisation" |
-| `weather` | "météo", "temps qu'il fait", "température" |
-| `metrics` | "CPU", "mémoire disponible", "charge système" |
-| `wikipedia` | "c'est quoi", "définition de", "parle-moi de" |
-| `memory` | "note que", "souviens-toi", "qu'est-ce que tu sais sur" |
-| `inbox` | "lis mon inbox", "qu'est-ce qu'il y a dans" |
+| Tool | Typical triggers |
+|------|----------------|
+| `datetime` | "what time", "what day", "what's the date" |
+| `geoposition` | "where am I", "my location" |
+| `weather` | "weather", "what's the weather", "temperature" |
+| `metrics` | "CPU", "RAM", "memory available", "system stats" |
+| `wikipedia` | "what is", "who is", "explain", "tell me about" |
+| `memory` | "note that", "remember", "what do you know about" |
+| `inbox` | "read my inbox", "what's in my files" |
 
-### Mémoire persistante
+### Persistent memory
 
-Atlas stocke ses notes dans le vault Obsidian (`ATLAS_VAULT_PATH`). Les sessions
-sont indexées dans `Sessions.md`. Les notes créées via la mémoire apparaissent
-dans `Topics/`, `People/`, etc.
+Atlas stores its notes in the Obsidian vault (`ATLAS_VAULT_PATH`). Sessions
+are indexed in `Sessions.md`. Notes created via memory tools appear in
+`Topics/`, `People/`, etc.
 
-**Atlas peut retrouver des informations dites lors de conversations précédentes**
-tant que la note correspondante a été créée dans le vault.
+**Atlas can retrieve information mentioned in previous conversations** as long
+as the corresponding note was created in the vault.
 
 ---
 
-## 8. Scripts utilitaires
+## 8. Utility scripts
 
-### Télécharger les modèles
+### Download models
 
 ```bash
 python scripts/download_models.py
 ```
 
-### Indexer des sessions orphelines
+### Index orphan sessions
 
-Si des fichiers `Sessions/*.md` n'apparaissent pas dans `Sessions.md` :
+If `Sessions/*.md` files don't appear in `Sessions.md`:
 
 ```bash
 python scripts/index_sessions.py
-# Ou spécifier un vault :
-python scripts/index_sessions.py --vault /chemin/vers/vault
+# Or specify a vault:
+python scripts/index_sessions.py --vault /path/to/vault
 ```
 
-### Fusionner des topics en double
+### Merge duplicate topics
 
-Après une longue utilisation, des topics similaires peuvent s'accumuler
-(ex: `Python.md` et `Programmation_Python.md`) :
+After prolonged use, similar topics may accumulate
+(e.g. `Python.md` and `Python_Programming.md`):
 
 ```bash
-# Revue interactive
+# Interactive review
 python scripts/unify_topics.py
 
-# Fusion automatique des paires à haute similarité (>= 80%)
+# Auto-merge high-similarity pairs (>= 80%)
 python scripts/unify_topics.py --threshold 0.8 --auto
 ```
 
-### Embedding de fichiers dans le vault
+### Embed files into the vault
 
 ```bash
-# Embedding simple (chunks de 4096 chars)
-python scripts/embed_memory.py /chemin/vers/document.md
+# Simple embedding (4096-char chunks)
+python scripts/embed_memory.py /path/to/document.md
 
-# Embedding large-context (fenêtres de 100K chars, 50% overlap)
-python scripts/embed_deep.py /chemin/vers/document_long.md
+# Large-context embedding (100K-char windows, 50% overlap)
+python scripts/embed_deep.py /path/to/large_document.md
 ```
 
 ---
 
 ## 9. FAQ
 
-### Ollama ne répond pas / "Connection refused"
+### Ollama not responding / "Connection refused"
 
 ```bash
-# Vérifier qu'Ollama tourne
+# Check that Ollama is running
 ollama list
 
-# Démarrer manuellement si nécessaire
+# Start manually if needed
 ollama serve &
 
-# Vérifier le health check
+# Run the health check
 python -m atlas.core.orchestrator --check
 ```
 
-### `whisper-cli` introuvable
+### `whisper-cli` not found
 
 ```bash
-# Vérifier que whisper-cli est dans $PATH
+# Check that whisper-cli is in $PATH
 which whisper-cli
 
-# Si absent, recompiler (voir §2.4) ou vérifier :
+# If absent, recompile (see §2.4) or check:
 ls /usr/local/bin/whisper-cli
 ```
 
-Si `whisper-cli` est dans un répertoire non standard, définir dans `.env` :
+If `whisper-cli` is in a non-standard directory, set in `.env`:
 
 ```bash
-WHISPER_BIN=/chemin/vers/whisper-cli
+WHISPER_CPP_BIN=/path/to/whisper-cli
 ```
 
-### Le wakeword n'est pas détecté
+### Wake word not detected
 
-1. Vérifier que le microphone est autorisé pour le Terminal dans
-   `Réglages Système → Confidentialité → Microphone`
-2. S'assurer que `models/Atlas.onnx` existe : `ls -la models/Atlas.onnx`
-3. Baisser le seuil de détection dans `.env` : `WAKE_WORD_THRESHOLD=0.3`
-4. Tester en mode texte pour isoler le problème : `echo "test" | python -m atlas.core.orchestrator --text`
+1. Check that the microphone is authorised for Terminal in
+   `System Settings → Privacy → Microphone`
+2. Verify that `models/Atlas.onnx` exists: `ls -la models/Atlas.onnx`
+3. Lower the detection threshold in `.env`: `WAKE_WORD_THRESHOLD=0.3`
+4. Test in text mode to isolate the issue: `echo "test" | python -m atlas.core.orchestrator --text`
 
-### Transcriptions fantômes ("Merci.", "Sous-titres réalisés par...")
+### Phantom transcriptions ("Thank you.", "Subtitles by...")
 
-Ce bug est connu de whisper.cpp — le modèle hallucine sur les silences.
+This is a known whisper.cpp bug — the model hallucinates on silence.
 
-Atlas filtre automatiquement via `no_speech_prob`. Si les fantômes persistent,
-baisser le seuil (= filtrer plus agressivement) :
+Atlas filters automatically via `no_speech_prob`. If phantoms persist,
+lower the threshold (= filter more aggressively):
 
 ```bash
-# Dans .env :
-WHISPER_NO_SPEECH_THRESHOLD=0.4   # défaut : 0.6
+# In .env:
+WHISPER_NO_SPEECH_THRESHOLD=0.4   # default: 0.6
 ```
 
-Note : un seuil trop bas peut éliminer des transcriptions légitimes à faible
-confiance (voix lointaine, bruit de fond).
+Note: a threshold too low may discard legitimate low-confidence transcriptions
+(distant voice, background noise).
 
-### Atlas n'identifie pas ma voix
+### Atlas doesn't recognise my voice
 
-1. Vérifier que l'utilisateur est bien inscrit :
+1. Check that the user is registered:
    ```bash
    python scripts/edit_user.py --list
    ```
 
-2. Re-enregistrer les samples vocaux dans un environnement calme :
+2. Re-record voice samples in a quiet environment:
    ```bash
    python scripts/register_user.py --name "Roma" --re-record
    ```
 
-3. Vérifier les seuils d'identification dans `.env` :
+3. Adjust identification thresholds in `.env`:
    ```bash
-   SPEAKER_MATCH_THRESHOLD=0.70     # Baisser légèrement (défaut: 0.75)
-   SPEAKER_FALLBACK_THRESHOLD=0.50  # Baisser légèrement (défaut: 0.55)
+   SPEAKER_ID_THRESHOLD=0.70     # Lower slightly (default: 0.75)
+   SPEAKER_FALLBACK_MIN_SCORE=0.25  # Lower slightly (default: 0.30)
    ```
 
-### Comment mettre à jour Atlas ?
+### How to update Atlas?
 
 ```bash
 git pull origin DEV_AtlasV0.1
@@ -404,26 +403,25 @@ pip install -e .
 python -m atlas.core.orchestrator --check
 ```
 
-Si le schéma de la base de données a changé, supprimer et recréer :
+If the database schema has changed, delete and recreate:
 
 ```bash
 rm atlas_users.db
-# Ré-inscrire les utilisateurs
+# Re-register users
 python scripts/register_user.py --name "Roma" ...
 ```
 
-### La session ne s'enregistre pas dans le vault
+### Session not saved to the vault
 
-1. Vérifier que `ATLAS_VAULT_PATH` pointe vers un répertoire existant avec permissions
-   d'écriture
-2. Vérifier que `Sessions/` se crée bien au premier démarrage
-3. Utiliser `scripts/index_sessions.py` pour rétro-indexer les fichiers existants
+1. Check that `ATLAS_VAULT_PATH` points to an existing directory with write permissions
+2. Verify that `Sessions/` is created on first start
+3. Use `scripts/index_sessions.py` to retroactively index existing files
 
-### Atlas est trop lent à répondre
+### Atlas is slow to respond
 
-Options pour réduire la latence :
+Options to reduce latency:
 
-- Utiliser un modèle Ollama plus léger : `OLLAMA_MODEL=llama3.2:1b`
-- Désactiver les tokens de réflexion : `python -m atlas.core.orchestrator --nothink`
-- Réduire le contexte LLM : `OLLAMA_NUM_CTX=2048`
-- Utiliser un modèle Whisper plus petit : `ggml-tiny.bin` au lieu de `ggml-base.bin`
+- Use a lighter Ollama model: `OLLAMA_MODEL=llama3.2:1b`
+- Disable thinking tokens: `python -m atlas.core.orchestrator --nothink`
+- Reduce LLM context: `OLLAMA_NUM_CTX=2048`
+- Use a smaller Whisper model: `ggml-tiny.bin` instead of `ggml-base.bin`

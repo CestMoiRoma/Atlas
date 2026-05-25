@@ -91,7 +91,7 @@ class SpeakerMatch:
 #: Using a single instance keeps identity checks simple (``user is GUEST_USER``).
 GUEST_USER: User = User(
     id=0,
-    name="Invité",
+    name="Guest",
     user_tag="user_unknown",
-    preferred_address="Invité",
+    preferred_address="Guest",
 )

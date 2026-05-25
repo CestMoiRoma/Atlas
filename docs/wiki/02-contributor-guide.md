@@ -1,37 +1,36 @@
-# Guide de Contribution
+# Contributor Guide
 
-Bienvenue dans Atlas ! Ce guide couvre tout ce dont tu as besoin pour contribuer au projet :
-setup de l'environnement de développement, normes de code, et procédures pour ajouter de
-nouveaux outils ou modèles.
+Welcome to Atlas! This guide covers everything you need to contribute to the project:
+development environment setup, code standards, and procedures for adding new tools or models.
 
-> Pour l'architecture interne, voir [01-internal-architecture.md](01-internal-architecture.md).  
-> Pour l'installation utilisateur, voir [03-user-manual.md](03-user-manual.md).
+> For internal architecture, see [01-internal-architecture.md](01-internal-architecture.md).  
+> For user installation, see [03-user-manual.md](03-user-manual.md).
 
 ---
 
-## Table des matières
+## Table of contents
 
-1. [Prérequis de développement](#1-prérequis-de-développement)
-2. [Setup de l'environnement](#2-setup-de-lenvironnement)
-3. [Normes de code](#3-normes-de-code)
-4. [Lancer les tests](#4-lancer-les-tests)
-5. [Ajouter un outil MCP](#5-ajouter-un-outil-mcp)
-6. [Ajouter un modèle téléchargeable](#6-ajouter-un-modèle-téléchargeable)
-7. [Processus de contribution](#7-processus-de-contribution)
+1. [Development prerequisites](#1-development-prerequisites)
+2. [Environment setup](#2-environment-setup)
+3. [Code standards](#3-code-standards)
+4. [Running tests](#4-running-tests)
+5. [Adding an MCP tool](#5-adding-an-mcp-tool)
+6. [Adding a downloadable model](#6-adding-a-downloadable-model)
+7. [Contribution process](#7-contribution-process)
 8. [Conventional Commits](#8-conventional-commits)
 
 ---
 
-## 1. Prérequis de développement
+## 1. Development prerequisites
 
-| Dépendance | Version minimale | Notes |
-|-----------|-----------------|-------|
+| Dependency | Minimum version | Notes |
+|------------|----------------|-------|
 | Python | 3.10 | Type unions `X \| Y`, `match/case` |
 | macOS | 13 Ventura | `say`, CoreLocation, PortAudio |
-| Ollama | latest | `ollama serve` doit tourner en fond |
-| Git | 2.x | GPG signing recommandé |
+| Ollama | latest | `ollama serve` must run in background |
+| Git | 2.x | GPG signing recommended |
 
-Outils Python de dev installés via le groupe `[dev]` :
+Dev Python tools installed via the `[dev]` group:
 
 ```
 pytest          pytest-asyncio   ruff
@@ -40,9 +39,9 @@ mypy            httpx            python-dotenv
 
 ---
 
-## 2. Setup de l'environnement
+## 2. Environment setup
 
-### 2.1 Cloner et installer
+### 2.1 Clone and install
 
 ```bash
 git clone https://github.com/CestMoiRoma/Atlas.git
@@ -52,38 +51,37 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-### 2.2 Configurer l'environnement
+### 2.2 Configure the environment
 
 ```bash
 cp .env.example .env
-# Éditer .env — au minimum :
-#   ATLAS_VAULT_PATH=/chemin/vers/vault
-#   WHISPER_MODEL_PATH=/chemin/vers/ggml-base.bin
-#   WAKE_WORD_MODEL_PATHS=models/Atlas.onnx
+# Edit .env — at minimum:
+#   ATLAS_VAULT_PATH=/path/to/vault
+#   WHISPER_CPP_MODEL=/path/to/ggml-base.bin
+#   WAKE_WORD_MODELS=models/Atlas.onnx
 ```
 
-### 2.3 Télécharger les modèles lourds
+### 2.3 Download heavy models
 
 ```bash
 python scripts/download_models.py
 ```
 
-Cela télécharge SpeechBrain ECAPA-TDNN (~80 MB) et affiche les instructions pour
+This downloads SpeechBrain ECAPA-TDNN (~80 MB) and prints instructions for
 Whisper GGML (~800 MB).
 
-`models/Atlas.onnx` (97 KB, wakeword) est déjà dans le repo — aucun téléchargement
-nécessaire.
+`models/Atlas.onnx` (97 KB, wake word) is already in the repo — no download needed.
 
-### 2.4 Vérifier l'installation
+### 2.4 Verify the installation
 
 ```bash
 python -m atlas.core.orchestrator --check
 ```
 
-Sortie attendue (tout en vert) :
+Expected output (all green):
 
 ```
-  ✓  Ollama            http://localhost:11434 — llama3.2 disponible
+  ✓  Ollama            http://localhost:11434 — llama3.2 available
   ✓  whisper-cli       /usr/local/bin/whisper-cli
   ✓  Whisper model     /path/to/ggml-base.bin (142 MB)
   ✓  Wake word model   models/Atlas.onnx
@@ -93,29 +91,29 @@ Sortie attendue (tout en vert) :
 
 ---
 
-## 3. Normes de code
+## 3. Code standards
 
-### 3.1 En-tête SPDX (obligatoire)
+### 3.1 SPDX header (mandatory)
 
-Chaque fichier `.py` doit commencer par :
+Every `.py` file must start with:
 
 ```python
 # SPDX-License-Identifier: AGPL-3.0-or-later
 ```
 
-Cette ligne est vérifiée par `ruff` en CI.
+This line is checked by `ruff` in CI.
 
-### 3.2 Typing strict
+### 3.2 Strict typing
 
-- Toutes les fonctions publiques sont typées (paramètres + retour)
-- Utiliser `X | Y` (PEP 604, Python 3.10+) plutôt que `Optional[X]` ou `Union[X, Y]`
-- Éviter `Any` sauf cas exceptionnel documenté
+- All public functions are typed (parameters + return value)
+- Use `X | Y` (PEP 604, Python 3.10+) rather than `Optional[X]` or `Union[X, Y]`
+- Avoid `Any` except in documented exceptional cases
 
 ```python
 # ✓ Correct
 def greet(name: str, age: int | None = None) -> str: ...
 
-# ✗ Éviter
+# ✗ Avoid
 def greet(name, age=None): ...
 ```
 
@@ -140,60 +138,60 @@ def embed(audio: np.ndarray, sample_rate: int) -> np.ndarray:
 ### 3.4 Ruff (linting + formatting)
 
 ```bash
-# Vérifier
+# Check
 ruff check atlas/ tests/ scripts/
 
-# Formater
+# Format
 ruff format atlas/ tests/ scripts/
 ```
 
-La configuration est dans `pyproject.toml` :
+Configuration is in `pyproject.toml`:
 
 ```toml
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4", "ANN"]
 ```
 
-- **E/F** : erreurs et avertissements pycodestyle/pyflakes
+- **E/F** : pycodestyle/pyflakes errors and warnings
 - **I** : import sorting (isort-compatible)
-- **UP** : pyupgrade — moderniser le code Python
-- **B** : bugbear — patterns problématiques
-- **C4** : comprehensions idiomatiques
-- **ANN** : annotations manquantes
+- **UP** : pyupgrade — modernise Python code
+- **B** : bugbear — problematic patterns
+- **C4** : idiomatic comprehensions
+- **ANN** : missing annotations
 
 ### 3.5 Async conventions
 
-- Tout code I/O est `async` — ne jamais bloquer l'event loop
-- Utiliser `asyncio.to_thread()` ou `loop.run_in_executor()` pour les opérations
-  bloquantes (ex: lecture fichier lourde, numpy, sqlite si nécessaire)
-- Les tests async utilisent `@pytest.mark.asyncio` (configuré en `auto` dans `pyproject.toml`)
+- All I/O code is `async` — never block the event loop
+- Use `asyncio.to_thread()` or `loop.run_in_executor()` for blocking operations
+  (e.g. heavy file reads, numpy, sqlite when needed)
+- Async tests use `@pytest.mark.asyncio` (configured as `auto` in `pyproject.toml`)
 
 ---
 
-## 4. Lancer les tests
+## 4. Running tests
 
-### Tests unitaires (rapides, pas de dépendances externes)
+### Unit tests (fast, no external dependencies)
 
 ```bash
 pytest tests/unit/ -v
 ```
 
-Les tests unitaires mockent toutes les dépendances I/O (Ollama, sounddevice,
-whisper-cli, SQLite). Ils doivent tourner sans réseau ni hardware audio.
+Unit tests mock all I/O dependencies (Ollama, sounddevice, whisper-cli, SQLite).
+They must run without network access or audio hardware.
 
-### Tests d'intégration (nécessitent Ollama + modèles)
+### Integration tests (require Ollama + models)
 
 ```bash
 pytest tests/integration/ -v
 ```
 
-### Suite complète avec couverture
+### Full suite with coverage
 
 ```bash
 pytest --cov=atlas --cov-report=term-missing
 ```
 
-### Linter uniquement (CI)
+### Linter only (CI)
 
 ```bash
 ruff check atlas/ tests/ scripts/
@@ -201,180 +199,178 @@ ruff check atlas/ tests/ scripts/
 
 ---
 
-## 5. Ajouter un outil MCP
+## 5. Adding an MCP tool
 
-### Étape 1 — Créer le serveur FastMCP
+### Step 1 — Create the FastMCP server
 
 ```python
-# atlas/tools/mon_outil.py
+# atlas/tools/my_tool.py
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""atlas/tools/mon_outil.py — Exemple d'outil MCP."""
+"""atlas/tools/my_tool.py — Example MCP tool."""
 
 from __future__ import annotations
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("mon_outil")
+mcp = FastMCP("my_tool")
 
 
 @mcp.tool()
-async def mon_outil_action(param: str) -> str:
-    """Décris ce que fait cet outil.
+async def my_tool_action(param: str) -> str:
+    """Describe what this tool does.
 
     Args:
-        param: Description du paramètre.
+        param: Parameter description.
 
     Returns:
-        Résultat sous forme de chaîne.
+        Result as a string.
     """
-    return f"Résultat pour : {param}"
+    return f"Result for: {param}"
 
 
 if __name__ == "__main__":
     mcp.run()
 ```
 
-### Étape 2 — Enregistrer dans `TOOL_SERVERS`
+### Step 2 — Register in `TOOL_SERVERS`
 
 ```python
 # atlas/core/mcp_client.py
 TOOL_SERVERS: dict[str, str] = {
-    # ... serveurs existants ...
-    "mon_outil": "atlas.tools.mon_outil",   # ← Ajouter ici
+    # ... existing servers ...
+    "my_tool": "atlas.tools.my_tool",   # ← Add here
 }
 ```
 
-### Étape 3 — Déclarer les prérequis si nécessaire
+### Step 3 — Declare prerequisites if needed
 
-Si ton outil dépend d'un autre (ex: lecture vault avant écriture) :
+If your tool depends on another (e.g. vault read before write):
 
 ```python
 TOOL_PREREQUISITES: dict[str, list[str]] = {
-    # ... prérequis existants ...
-    "mon_outil__mon_outil_action": ["memory__memory_arbo"],   # si besoin
+    # ... existing prerequisites ...
+    "my_tool__my_tool_action": ["memory__memory_arbo"],   # if needed
 }
 ```
 
-### Étape 4 — Ajouter l'entry point dans `pyproject.toml`
+### Step 4 — Add entry point in `pyproject.toml`
 
-Si l'outil a besoin d'être invoqué directement (ex: service géoposition) :
+If the tool needs to be invoked directly (e.g. geoposition service):
 
 ```toml
 [project.scripts]
-atlas-mon-outil = "atlas.tools.mon_outil:mcp.run"
+atlas-my-tool = "atlas.tools.my_tool:mcp.run"
 ```
 
-### Étape 5 — Écrire un test
+### Step 5 — Write a test
 
 ```python
-# tests/unit/test_mon_outil.py
+# tests/unit/test_my_tool.py
 import pytest
-from atlas.tools.mon_outil import mon_outil_action
+from atlas.tools.my_tool import my_tool_action
 
 @pytest.mark.asyncio
-async def test_mon_outil_action():
-    result = await mon_outil_action("test")
+async def test_my_tool_action():
+    result = await my_tool_action("test")
     assert "test" in result
 ```
 
 ---
 
-## 6. Ajouter un modèle téléchargeable
+## 6. Adding a downloadable model
 
-Si ton code nécessite un fichier modèle lourd (> 10 MB), il doit être géré par
-`scripts/download_models.py` et **exclu de git** (`.gitignore`).
+If your code requires a heavy model file (> 10 MB), it must be managed by
+`scripts/download_models.py` and **excluded from git** (`.gitignore`).
 
-### Étape 1 — Définir le `ModelSpec`
+### Step 1 — Define the `ModelSpec`
 
 ```python
 # scripts/download_models.py
-from atlas.config import Config
 
 NEW_MODEL = ModelSpec(
-    name="Mon Modèle v2",
+    name="My Model v2",
     url="https://huggingface.co/org/model/resolve/main/model.bin",
-    dest=Path("models/mon_modele_v2.bin"),
-    sha256="abc123def456...",   # sha256sum du fichier attendu
+    dest=Path("models/my_model_v2.bin"),
+    sha256="abc123def456...",   # sha256sum of the expected file
     size_mb=250.0,
 )
 ```
 
-### Étape 2 — Obtenir le SHA-256
+### Step 2 — Get the SHA-256
 
 ```bash
-curl -L <url> -o /tmp/mon_modele.bin
-sha256sum /tmp/mon_modele.bin
+curl -L <url> -o /tmp/my_model.bin
+sha256sum /tmp/my_model.bin
 ```
 
-### Étape 3 — Ajouter au `.gitignore`
+### Step 3 — Add to `.gitignore`
 
 ```gitignore
-models/mon_modele_v2.bin
+models/my_model_v2.bin
 ```
 
-### Étape 4 — Documenter dans `.env.example`
+### Step 4 — Document in `.env.example`
 
 ```bash
-# Chemin vers Mon Modèle v2 (téléchargé via scripts/download_models.py)
-MON_MODELE_PATH=models/mon_modele_v2.bin
+# Path to My Model v2 (downloaded via scripts/download_models.py)
+MY_MODEL_PATH=models/my_model_v2.bin
 ```
 
 ---
 
-## 7. Processus de contribution
+## 7. Contribution process
 
 ### Branches
 
 ```
-main          ← Code stable, taggué
-DEV_AtlasVx.x ← Développement actif
-feature/*     ← Nouvelles fonctionnalités
-fix/*         ← Corrections de bugs
+main          ← Stable code, tagged
+DEV_AtlasVx.x ← Active development
+feature/*     ← New features
+fix/*         ← Bug fixes
 ```
 
-### Workflow standard
+### Standard workflow
 
 ```bash
-# 1. Créer une branche
-git checkout -b feature/mon-outil
+# 1. Create a branch
+git checkout -b feature/my-tool
 
-# 2. Développer + tests
+# 2. Develop + tests
 pytest tests/unit/ -v
 ruff check atlas/ tests/
 
-# 3. Commiter (GPG requis pour les mainteneurs)
-git add -p   # Revue hunk par hunk
-git commit -S -m "feat(tools): add mon_outil server"
+# 3. Commit (GPG required for maintainers)
+git add -p   # Hunk-by-hunk review
+git commit -S -m "feat(tools): add my_tool server"
 
-# 4. Ouvrir une Pull Request
+# 4. Open a Pull Request
 gh pr create --base DEV_AtlasV0.1
 ```
 
-### Revue de PR
+### PR review
 
-- Au moins un reviewer avant merge
-- CI doit passer (ruff + pytest)
-- Les commits doivent suivre les Conventional Commits (voir §8)
-- Pas de `Co-Authored-By: *` automatique
+- At least one reviewer before merge
+- CI must pass (ruff + pytest)
+- Commits must follow Conventional Commits (see §8)
 
 ---
 
 ## 8. Conventional Commits
 
-Format : `type(scope): description`
+Format: `type(scope): description`
 
 | Type | Usage |
 |------|-------|
-| `feat` | Nouvelle fonctionnalité |
-| `fix` | Correction de bug |
-| `test` | Ajout/modification de tests |
-| `docs` | Documentation uniquement |
-| `chore` | Outillage, CI, dépendances |
-| `refactor` | Réécriture sans changement de comportement |
-| `perf` | Amélioration de performance |
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `test` | Adding/modifying tests |
+| `docs` | Documentation only |
+| `chore` | Tooling, CI, dependencies |
+| `refactor` | Rewrite without behaviour change |
+| `perf` | Performance improvement |
 
-**Scopes courants :** `core`, `tools`, `db`, `config`, `scripts`, `tests`, `ci`
+**Common scopes:** `core`, `tools`, `db`, `config`, `scripts`, `tests`, `ci`
 
-**Exemples :**
+**Examples:**
 
 ```
 feat(core): add no_speech_prob filter to STT transcription
@@ -384,7 +380,7 @@ chore: bump httpx to 0.28
 docs(wiki): update architecture diagram for parallel dispatch
 ```
 
-**Corps de commit** (pour les changements significatifs) :
+**Commit body** (for significant changes):
 
 ```
 feat(core): add parallel tool dispatch via asyncio.gather

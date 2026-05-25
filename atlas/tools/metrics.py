@@ -18,8 +18,8 @@ def get_mac_metrics() -> str:
     Example output::
 
         CPU : 34 %
-        RAM : 11.2 Go utilisés / 16.0 Go (70 %)
-        Disk: 234 Go utilisés / 500 Go (47 %)
+        RAM : 11.2 GB used / 16.0 GB (70 %)
+        Disk: 234 GB used / 500 GB (47 %)
     """
     cpu_pct = psutil.cpu_percent(interval=0.5)
 
@@ -33,8 +33,8 @@ def get_mac_metrics() -> str:
 
     return (
         f"CPU  : {cpu_pct:.0f} %\n"
-        f"RAM  : {ram_used_gb:.1f} Go utilisés / {ram_total_gb:.1f} Go ({mem.percent:.0f} %)\n"
-        f"Disk : {disk_used_gb:.0f} Go utilisés / {disk_total_gb:.0f} Go ({disk.percent:.0f} %)"
+        f"RAM  : {ram_used_gb:.1f} GB used / {ram_total_gb:.1f} GB ({mem.percent:.0f} %)\n"
+        f"Disk : {disk_used_gb:.0f} GB used / {disk_total_gb:.0f} GB ({disk.percent:.0f} %)"
     )
 
 

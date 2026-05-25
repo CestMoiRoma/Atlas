@@ -56,7 +56,7 @@ def stt(config) -> STT:
 # ---------------------------------------------------------------------------
 
 
-def _make_whisper_json(text: str = "Bonjour.", no_speech_prob: float = 0.1) -> str:
+def _make_whisper_json(text: str = "Hello.", no_speech_prob: float = 0.1) -> str:
     """Build a minimal whisper --output-format json payload."""
     return json.dumps(
         {
@@ -78,12 +78,12 @@ def _make_whisper_json(text: str = "Bonjour.", no_speech_prob: float = 0.1) -> s
 
 class TestParseWhisperJson:
     def test_returns_text_below_threshold(self, stt: STT) -> None:
-        raw = _make_whisper_json("Bonjour.", no_speech_prob=0.1)
+        raw = _make_whisper_json("Hello.", no_speech_prob=0.1)
         result = stt._parse_whisper_json(raw)
-        assert result == "Bonjour."
+        assert result == "Hello."
 
     def test_returns_empty_above_threshold(self, stt: STT) -> None:
-        raw = _make_whisper_json("Merci.", no_speech_prob=0.9)
+        raw = _make_whisper_json("Thanks.", no_speech_prob=0.9)
         result = stt._parse_whisper_json(raw)
         assert result == ""
 
@@ -94,9 +94,9 @@ class TestParseWhisperJson:
         assert result == ""
 
     def test_strips_leading_trailing_whitespace(self, stt: STT) -> None:
-        raw = _make_whisper_json("  Bonjour le monde.  ", no_speech_prob=0.05)
+        raw = _make_whisper_json("  Hello world.  ", no_speech_prob=0.05)
         result = stt._parse_whisper_json(raw)
-        assert result == "Bonjour le monde."
+        assert result == "Hello world."
 
     def test_handles_empty_transcription_list(self, stt: STT) -> None:
         raw = json.dumps({"transcription": []})
@@ -113,14 +113,14 @@ class TestParseWhisperJson:
             {
                 "transcription": [
                     {
-                        "text": "Bonjour.",
+                        "text": "Hello.",
                         "timestamps": {"from": "00:00:00,000", "to": "00:00:01,000"},
                     }
                 ]
             }
         )
         result = stt._parse_whisper_json(raw)
-        assert result == "Bonjour."
+        assert result == "Hello."
 
     def test_custom_threshold_respected(self, tmp_path: Path) -> None:
         """Config with threshold=0.3 should discard text at 0.4."""
@@ -155,12 +155,10 @@ class TestTranscribe:
         wav_file = tmp_path / "test.wav"
         wav_file.write_bytes(b"RIFF" + b"\x00" * 40)  # minimal stub
 
-        good_json = _make_whisper_json("Quelle heure est-il ?", no_speech_prob=0.05)
-
-        with patch.object(stt, "_transcribe_sync", return_value="Quelle heure est-il ?"):
+        with patch.object(stt, "_transcribe_sync", return_value="What time is it?"):
             result = await stt.transcribe(wav_file)
 
-        assert result == "Quelle heure est-il ?"
+        assert result == "What time is it?"
 
     @pytest.mark.asyncio
     async def test_transcribe_empty_on_phantom(self, stt: STT, tmp_path: Path) -> None:

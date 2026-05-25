@@ -31,7 +31,7 @@ no_speech_prob filter
 whisper-cli is invoked with ``--output-format json``.  The resulting JSON
 contains a ``no_speech_prob`` field per segment.  Any transcription where the
 first segment's ``no_speech_prob`` exceeds ``config.whisper_no_speech_threshold``
-is discarded silently — this eliminates the phantom "Merci." hallucinations that
+is discarded silently — this eliminates the phantom "Thank you." hallucinations that
 whisper produces on near-silence inputs.
 """
 

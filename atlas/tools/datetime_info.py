@@ -14,19 +14,18 @@ mcp = FastMCP(name="datetime_info")
 def get_datetime() -> str:
     """Return the current local date and time in a human-readable format.
 
-    Example output: ``Dimanche 25 mai 2026, 14:32:07``
+    Example output: ``Sunday, May 25 2026, 14:32:07``
     """
     now = datetime.now()
-    # French day and month names
-    days_fr = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
-    months_fr = [
-        "janvier", "février", "mars", "avril", "mai", "juin",
-        "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
     ]
-    day_name = days_fr[now.weekday()]
-    month_name = months_fr[now.month - 1]
+    day_name = days[now.weekday()]
+    month_name = months[now.month - 1]
     return (
-        f"{day_name} {now.day} {month_name} {now.year}, "
+        f"{day_name}, {month_name} {now.day} {now.year}, "
         f"{now.strftime('%H:%M:%S')}"
     )
 

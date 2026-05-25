@@ -95,11 +95,11 @@ _CONTINUE_SENTINEL = "[SUITE]"
 _QUESTION_SENTINEL_CAP = 3
 
 _WAKE_ACK = [
-    "Oui ?",
-    "J'écoute.",
-    "Oui, j'écoute.",
-    "Présent.",
-    "Je vous écoute.",
+    "Yes?",
+    "Listening.",
+    "Yes, go ahead.",
+    "Here.",
+    "I'm listening.",
 ]
 
 # Strips <think>...</think> reasoning blocks emitted by models like Gemma 4.
@@ -135,90 +135,90 @@ def _setup_file_logging(log_path: str) -> None:
 # ── System prompt ─────────────────────────────────────────────────────────────
 
 _MEMORY_GRAPH = """
-=== MÉMOIRE OBSIDIAN — GRAPHE DE CONNAISSANCES ===
+=== OBSIDIAN MEMORY — KNOWLEDGE GRAPH ===
 
-Tu disposes d'un vault Obsidian structuré en graphe. C'est ta mémoire à long terme.
-Tu DOIS l'utiliser TRÈS fréquemment — aussi bien pour lire que pour écrire.
+You have a structured Obsidian vault as your long-term memory.
+You MUST use it VERY frequently — both for reading and writing.
 
-── OUTILS MÉMOIRE ──
-  memory__memory_read             lire une note
-  memory__memory_write            créer/écraser une note  ← user_tag OBLIGATOIRE
-  memory__memory_append           ajouter du contenu à la fin d'une note
-  memory__memory_patch_section    remplacer le contenu d'une section ## existante
-  memory__memory_link             créer un wikilink bidirectionnel entre deux notes
-  memory__memory_search           chercher dans les noms de fichiers et le contenu
-  memory__memory_delete           supprimer définitivement une note
-  memory__memory_arbo             voir l'arborescence du vault (ou d'un sous-dossier)
+── MEMORY TOOLS ──
+  memory__memory_read             read a note
+  memory__memory_write            create/overwrite a note  ← user_tag REQUIRED
+  memory__memory_append           append content to the end of a note
+  memory__memory_patch_section    replace the content of an existing ## section
+  memory__memory_link             create a bidirectional wikilink between two notes
+  memory__memory_search           search note names and content
+  memory__memory_delete           permanently delete a note
+  memory__memory_arbo             view the vault directory tree (or a subfolder)
 
-── STRUCTURE DES RÉPERTOIRES ──
-  Users/{Nom}.md          nœud central de l'utilisateur (hub)
-  Topics/{Sujet}.md       nœud thématique (travail, projet X, hobby…)
-  Memories/{date} - {Nom} - {sujet}.md   nœud mémoire (événement, info, échange)
-  Sessions/{date}_{heure}.md             journal automatique de chaque session
+── DIRECTORY STRUCTURE ──
+  Users/{Name}.md          user hub node
+  Topics/{Subject}.md      thematic node (work, project X, hobby…)
+  Memories/{date} - {Name} - {subject}.md   memory node (event, info, exchange)
+  Sessions/{date}_{time}.md                 automatic journal of each session
 
-── RÈGLES OBLIGATOIRES ──
-AVANT toute opération mémoire → Appelle memory__memory_arbo pour voir ce qui existe.
-AVANT chaque réponse sur l'utilisateur ou ses projets → memory__memory_search puis memory__memory_read.
-APRÈS chaque échange avec un fait nouveau → Crée un nœud Memories/ avec memory__memory_write (user_tag obligatoire).
-LIENS → Chaque nœud Memories/ doit wikilinker [[Nom]] ET [[Thème(s)]] via memory__memory_link.
-=== FIN MÉMOIRE ===
+── MANDATORY RULES ──
+BEFORE any memory operation → Call memory__memory_arbo to see what exists.
+BEFORE each reply about the user or their projects → memory__memory_search then memory__memory_read.
+AFTER each exchange with a new fact → Create a Memories/ node with memory__memory_write (user_tag required).
+LINKS → Every Memories/ node must wikilink [[Name]] AND [[Topic(s)]] via memory__memory_link.
+=== END MEMORY ===
 """
 
 
 def _build_system_prompt(user: User, config: Config, think: bool | None = None) -> str:
     """Build a per-turn system prompt tailored to the identified speaker."""
     voice_rules = (
-        "Tu es Atlas, un assistant IA vocal et local. "
-        "Réponds toujours en français, de manière concise et naturelle à l'oral. "
-        "INTERDIT : markdown, tableaux, listes à puces, astérisques, dièses, "
-        "tirets de liste, blocs de code ou tout autre formatage visuel — "
-        "tu parles, tu n'écris pas."
+        "You are Atlas, a local AI voice assistant. "
+        "Always respond in English, concisely and naturally for spoken delivery. "
+        "FORBIDDEN: markdown, tables, bullet lists, asterisks, hashes, "
+        "list dashes, code blocks, or any other visual formatting — "
+        "you speak, you do not write."
     )
 
     think_hint = ""
     if think is not False and config.think_depth:
         _depth_map = {
-            "court":      "Raisonne de façon très brève — quelques phrases suffisent.",
-            "modéré":     "Raisonne de façon concise — reste concentré sur l'essentiel.",
-            "approfondi": "Raisonne en profondeur si la question le justifie.",
+            "short":    "Reason very briefly — a few sentences are enough.",
+            "moderate": "Reason concisely — stay focused on the essentials.",
+            "deep":     "Reason in depth if the question warrants it.",
         }
         hint_text = _depth_map.get(config.think_depth, config.think_depth)
-        think_hint = f"\nREASONING DEPTH : {hint_text}"
+        think_hint = f"\nREASONING DEPTH: {hint_text}"
 
     action_rules = (
-        "ORDRE D'EXÉCUTION — deux options valides :\n"
-        "• Option 1 (préférable) : appelle les outils directement, "
-        "puis annonce le résultat à l'utilisateur dans le même message.\n"
-        "• Option 2 (si tu dois parler avant d'agir) : annonce ton INTENTION seulement, "
-        "puis ajoute [SUITE] à la toute fin de ton message. "
-        "[SUITE] ne sera PAS lu à voix haute — il déclenche automatiquement "
-        "un nouveau tour où tu pourras appeler les outils.\n"
-        "INTERDIT : promettre ou confirmer une action sans appeler les outils "
-        "ET sans [SUITE]."
+        "EXECUTION ORDER — two valid options:\n"
+        "• Option 1 (preferred): call tools directly, "
+        "then report the result to the user in the same message.\n"
+        "• Option 2 (if you need to speak before acting): announce your INTENTION only, "
+        "then add [SUITE] at the very end of your message. "
+        "[SUITE] will NOT be spoken aloud — it automatically triggers "
+        "a new turn where you can call the tools.\n"
+        "FORBIDDEN: promise or confirm an action without calling the tools "
+        "AND without [SUITE]."
     )
 
     tool_triggers = (
-        "Tu DOIS appeler les outils suivants dès que le sujet est mentionné :\n"
-        "• POSITION : 'on est où', 'où suis-je', 'quelle ville' → get_current_place\n"
-        "• MÉTÉO LOCALE : 'quel temps', 'météo' → get_local_weather\n"
-        "• MÉTÉO VILLE : météo + nom de ville → get_city_weather\n"
-        "• HEURE/DATE : 'quelle heure', 'quel jour' → get_datetime\n"
-        "• MÉTRIQUES MAC : 'cpu', 'ram', 'stats du mac' → get_mac_metrics\n"
-        "• WIKIPEDIA : 'c'est quoi', 'qui est', 'explique-moi' → wikipedia_search puis wikipedia_summary\n"
-        "• INBOX : 'lis mon inbox', 'mes fichiers' → inbox_list puis inbox_read\n"
-        "Ne réponds JAMAIS de mémoire pour ces sujets."
+        "You MUST call the following tools as soon as the topic is mentioned:\n"
+        "• POSITION: 'where am I', 'what city', 'my location' → get_current_place\n"
+        "• LOCAL WEATHER: 'what's the weather', 'weather' → get_local_weather\n"
+        "• CITY WEATHER: weather + city name → get_city_weather\n"
+        "• TIME/DATE: 'what time', 'what day' → get_datetime\n"
+        "• MAC METRICS: 'cpu', 'ram', 'system stats' → get_mac_metrics\n"
+        "• WIKIPEDIA: 'what is', 'who is', 'explain' → wikipedia_search then wikipedia_summary\n"
+        "• INBOX: 'read my inbox', 'my files' → inbox_list then inbox_read\n"
+        "NEVER answer from memory for these topics."
     )
 
     if user.is_guest:
         identity = (
-            "L'utilisateur actuel est inconnu (invité). "
-            "Accueille-le chaleureusement. "
-            "Si tu apprends son prénom, crée un nœud Memories/ avec le tag user_unknown."
+            "The current user is unknown (guest). "
+            "Welcome them warmly. "
+            "If you learn their name, create a Memories/ node with tag user_unknown."
         )
         return f"{voice_rules}{think_hint}\n\n{action_rules}\n\n{tool_triggers}\n\n{_MEMORY_GRAPH}\n\n{identity}"
 
     profile_parts = [p for p in [
-        f"{user.age} ans" if user.age else "",
+        f"{user.age} years old" if user.age else "",
         user.gender or "",
         user.profession or "",
     ] if p]
@@ -226,20 +226,20 @@ def _build_system_prompt(user: User, config: Config, think: bool | None = None) 
 
     if len(user.all_addresses) > 1:
         addr_instr = (
-            f"Varie naturellement entre ces surnoms : "
+            f"Alternate naturally between these nicknames: "
             f"{', '.join(repr(a) for a in user.all_addresses)}."
         )
     else:
-        addr_instr = f"Appelle-le/la '{user.preferred_address}'."
+        addr_instr = f"Call them '{user.preferred_address}'."
 
     identity = (
-        f"Tu parles avec {user.name}"
+        f"You are talking with {user.name}"
         f"{' (' + profile + ')' if profile else ''}. "
         f"{addr_instr} "
-        f"Son nœud utilisateur est Users/{user.name}.md. "
-        f"Son tag Obsidian est '{user.user_tag}'. "
-        f"CHAQUE appel à memory__memory_write DOIT inclure user_tag='{user.user_tag}'. "
-        f"Commence la session en vérifiant Users/{user.name}.md."
+        f"Their user node is Users/{user.name}.md. "
+        f"Their Obsidian tag is '{user.user_tag}'. "
+        f"EVERY call to memory__memory_write MUST include user_tag='{user.user_tag}'. "
+        f"Start the session by checking Users/{user.name}.md."
     )
 
     return f"{voice_rules}{think_hint}\n\n{action_rules}\n\n{tool_triggers}\n\n{_MEMORY_GRAPH}\n\n{identity}"
@@ -316,7 +316,7 @@ async def _run_turn(
 
             if tool_round > config.max_tool_rounds:
                 logger.warning("Tool loop cap (%d) reached — aborting turn", config.max_tool_rounds)
-                await tts.speak("Je semble coincé dans une boucle. Pouvez-vous reformuler ?")
+                await tts.speak("I seem to be stuck in a loop. Could you rephrase that?")
                 return False
 
             logger.info("Tool round %d/%d", tool_round, config.max_tool_rounds)
@@ -362,9 +362,9 @@ async def _run_turn(
                 working.append(Message(
                     role="user",
                     content=(
-                        f"⛔ ORDRE D'OUTILS INCORRECT — tu as demandé `{blocked_tool}` "
-                        f"sans avoir appelé {missing_str} en premier.\n"
-                        f"Appelle {missing_str} maintenant, puis relance `{blocked_tool}`."
+                        f"⛔ INCORRECT TOOL ORDER — you requested `{blocked_tool}` "
+                        f"without calling {missing_str} first.\n"
+                        f"Call {missing_str} now, then retry `{blocked_tool}`."
                     ),
                 ))
             continue
@@ -399,10 +399,10 @@ async def _run_turn(
                 working.append(Message(
                     role="user",
                     content=(
-                        f"⚠️ CONTINUATION FORCÉE ({q_sentinel_rounds}/{_QUESTION_SENTINEL_CAP}) — "
-                        "tu viens de poser une question ET tu as ajouté [SUITE]. "
-                        "Si des actions restent à faire, exécute-les MAINTENANT. "
-                        "Sinon réponds directement SANS [SUITE]."
+                        f"⚠️ FORCED CONTINUATION ({q_sentinel_rounds}/{_QUESTION_SENTINEL_CAP}) — "
+                        "you just asked a question AND added [SUITE]. "
+                        "If actions remain, execute them NOW. "
+                        "Otherwise reply directly WITHOUT [SUITE]."
                     ),
                 ))
                 continue
@@ -413,7 +413,7 @@ async def _run_turn(
 
             if tool_round > config.max_tool_rounds:
                 logger.warning("Continuation loop cap reached — aborting")
-                await tts.speak("Je semble coincé dans une boucle. Pouvez-vous reformuler ?")
+                await tts.speak("I seem to be stuck in a loop. Could you rephrase that?")
                 return False
 
             if speak_text:
@@ -424,8 +424,8 @@ async def _run_turn(
             working.append(Message(
                 role="user",
                 content=(
-                    f"[CONTINUATION AUTOMATIQUE — tour {tool_round}/{config.max_tool_rounds}] "
-                    "Exécute maintenant les actions prévues ou réponds directement si tout est fait."
+                    f"[AUTOMATIC CONTINUATION — round {tool_round}/{config.max_tool_rounds}] "
+                    "Execute the planned actions now, or reply directly if everything is done."
                 ),
             ))
             continue
@@ -438,12 +438,12 @@ async def _run_turn(
     # Validation guards
     if reply_text.lstrip().startswith("<"):
         logger.warning("Model returned HTML — discarding")
-        await tts.speak("Désolé, je n'ai pas pu traiter cette demande.")
+        await tts.speak("Sorry, I couldn't process that request.")
         return False
 
     if not reply_text.strip():
         if had_tool_calls:
-            working.append(Message(role="user", content="Résume maintenant le résultat pour l'utilisateur."))
+            working.append(Message(role="user", content="Summarise the result for the user now."))
             resp2 = await ollama.chat(
                 model=config.ollama_model, messages=working,
                 tools=[], think=think, options=ollama_options,

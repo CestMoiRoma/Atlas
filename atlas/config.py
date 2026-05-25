@@ -151,7 +151,7 @@ class Config:
     # ── STT ───────────────────────────────────────────────────────────────────
     whisper_bin: str = "whisper-cli"
     whisper_model: Path = field(default_factory=lambda: Path("/path/to/model.bin"))
-    whisper_language: str = "fr"
+    whisper_language: str = "en"
     whisper_no_speech_threshold: float = 0.6
 
     # ── TTS ───────────────────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ class Config:
 
     # ── Thinking ─────────────────────────────────────────────────────────────
     nothink: bool = False
-    think_depth: str = "modéré"
+    think_depth: str = "moderate"
 
     # ── Derived helpers ───────────────────────────────────────────────────────
 
@@ -244,7 +244,7 @@ class Config:
             # STT
             whisper_bin=_get("WHISPER_CPP_BIN", "whisper-cli"),
             whisper_model=Path(whisper_model_raw),
-            whisper_language=_get("WHISPER_CPP_LANGUAGE", "fr"),
+            whisper_language=_get("WHISPER_CPP_LANGUAGE", "en"),
             whisper_no_speech_threshold=_get_float("WHISPER_NO_SPEECH_THRESHOLD", 0.6),
             # TTS
             tts_rate=tts_rate,
@@ -282,5 +282,5 @@ class Config:
             log_file=_get("LOG_FILE", ""),
             # Thinking
             nothink=_get_bool("NOTHINK", False),
-            think_depth=_get("THINK_DEPTH", "modéré"),
+            think_depth=_get("THINK_DEPTH", "moderate"),
         )

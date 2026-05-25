@@ -29,18 +29,18 @@ File format
     start: 14:32:01
     ---
 
-    # Session du 2026-05-25 à 14:32
+    # Session 2026-05-25 at 14:32
 
-    ## Tour 1 · 14:32:18 · Roma
-    > Ce que l'utilisateur a dit
+    ## Turn 1 · 14:32:18 · Roma
+    > What the user said
 
     🔧 `memory__memory_write` · `memory__memory_link`
 
-    Réponse d'Atlas.
+    Atlas's reply.
 
     ---
 
-    *Session fermée à 14:45:00 — 3 tours, 12 min, utilisateur : Roma*
+    *Session closed at 14:45:00 — 3 turns, 12 min, speaker: Roma*
 
     [[Sessions]]
 """
@@ -126,7 +126,7 @@ class SessionLog:
         tools_str = " · ".join(f"`{t}`" for t in tools_called) if tools_called else "—"
 
         block = (
-            f"\n## Tour {self._turn} · {ts} · {speaker}\n"
+            f"\n## Turn {self._turn} · {ts} · {speaker}\n"
             f"> {user_text}\n\n"
             f"🔧 {tools_str}\n\n"
             f"{reply}\n\n"
@@ -144,14 +144,14 @@ class SessionLog:
         end = datetime.now()
         elapsed_min = int((end - self._start).total_seconds() // 60)
         speakers_str = ", ".join(sorted(self._speakers)) if self._speakers else "—"
-        plural_tours = "s" if self._turn != 1 else ""
+        plural_turns = "s" if self._turn != 1 else ""
         plural_users = "s" if len(self._speakers) > 1 else ""
 
         footer = (
-            f"\n*Session fermée à {end.strftime('%H:%M:%S')} — "
-            f"{self._turn} tour{plural_tours}, "
+            f"\n*Session closed at {end.strftime('%H:%M:%S')} — "
+            f"{self._turn} turn{plural_turns}, "
             f"{elapsed_min} min, "
-            f"utilisateur{plural_users} : {speakers_str}*\n"
+            f"speaker{plural_users}: {speakers_str}*\n"
             f"\n[[Sessions]]\n"
         )
 
@@ -174,8 +174,8 @@ class SessionLog:
             hub.write_text(
                 "---\ntype: sessions_index\n---\n\n"
                 "# Sessions\n\n"
-                "Index de toutes les conversations d'Atlas.\n\n"
-                "## Journal\n",
+                "Index of all Atlas conversations.\n\n"
+                "## Log\n",
                 encoding="utf-8",
             )
             logger.info("Sessions hub created → %s", hub)
@@ -198,6 +198,6 @@ class SessionLog:
             f"date: {now.strftime('%Y-%m-%d')}\n"
             f"start: {now.strftime('%H:%M:%S')}\n"
             f"---\n\n"
-            f"# Session du {now.strftime('%Y-%m-%d')} à {now.strftime('%H:%M')}\n",
+            f"# Session {now.strftime('%Y-%m-%d')} at {now.strftime('%H:%M')}\n",
             encoding="utf-8",
         )

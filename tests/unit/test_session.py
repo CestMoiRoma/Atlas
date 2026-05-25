@@ -84,13 +84,13 @@ class TestSessionLogAppend:
         log = SessionLog(config)
         log.append_turn(
             speaker="Roma",
-            user_text="Quelle heure est-il ?",
+            user_text="What time is it?",
             tools_called=[],
-            reply="Il est 10h.",
+            reply="It's 10 AM.",
         )
         content = log.path.read_text(encoding="utf-8")
-        assert "Quelle heure est-il ?" in content
-        assert "Il est 10h." in content
+        assert "What time is it?" in content
+        assert "It's 10 AM." in content
 
     def test_append_increments_turn_counter(self, config: Config) -> None:
         log = SessionLog(config)
@@ -100,8 +100,8 @@ class TestSessionLogAppend:
 
     def test_append_records_speakers(self, config: Config) -> None:
         log = SessionLog(config)
-        log.append_turn("Roma", "Bonjour", [], "Salut")
-        log.append_turn("Alice", "Ça va ?", [], "Oui")
+        log.append_turn("Roma", "Hello", [], "Hi there")
+        log.append_turn("Alice", "How are you?", [], "Fine thanks")
         assert "Roma" in log.speakers
         assert "Alice" in log.speakers
 
@@ -109,9 +109,9 @@ class TestSessionLogAppend:
         log = SessionLog(config)
         log.append_turn(
             speaker="Roma",
-            user_text="Quel temps ?",
+            user_text="What's the weather?",
             tools_called=["weather__get_weather"],
-            reply="Il fait 22°C.",
+            reply="It's 22°C.",
         )
         content = log.path.read_text(encoding="utf-8")
         assert "weather" in content.lower()
@@ -119,7 +119,7 @@ class TestSessionLogAppend:
     def test_multiple_appends_all_present(self, config: Config) -> None:
         log = SessionLog(config)
         for i in range(5):
-            log.append_turn("Roma", f"Question {i}", [], f"Réponse {i}")
+            log.append_turn("Roma", f"Question {i}", [], f"Answer {i}")
         content = log.path.read_text(encoding="utf-8")
         for i in range(5):
             assert f"Question {i}" in content
@@ -128,7 +128,7 @@ class TestSessionLogAppend:
 class TestSessionLogClose:
     def test_close_writes_footer(self, config: Config) -> None:
         log = SessionLog(config)
-        log.append_turn("Roma", "Test", [], "Ok")
+        log.append_turn("Roma", "Test", [], "Done")
         log.close()
         content = log.path.read_text(encoding="utf-8")
         # Footer should mention turns or stats

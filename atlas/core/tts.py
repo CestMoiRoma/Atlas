@@ -17,7 +17,7 @@ Usage::
     from atlas.config import Config
 
     tts = TTS(Config.from_env())
-    await tts.speak("Bonjour, comment puis-je vous aider ?")
+    await tts.speak("Hello, how can I help you?")
 """
 
 from __future__ import annotations

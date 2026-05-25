@@ -12,19 +12,19 @@ from mcp.server.fastmcp import FastMCP  # type: ignore[import]
 logger = logging.getLogger(__name__)
 mcp = FastMCP(name="wikipedia")
 
-_API = "https://fr.wikipedia.org/api/rest_v1"
-_SEARCH_API = "https://fr.wikipedia.org/w/api.php"
+_API = "https://en.wikipedia.org/api/rest_v1"
+_SEARCH_API = "https://en.wikipedia.org/w/api.php"
 
 
 @mcp.tool()
 def wikipedia_search(query: str) -> str:
-    """Search Wikipedia (French) and return the top article titles and snippets.
+    """Search Wikipedia and return the top article titles and snippets.
 
     Use this first to find the correct article title, then call
     ``wikipedia_summary`` with the best result.
 
     Args:
-        query: Search terms (e.g. ``"photosynthèse"``).
+        query: Search terms (e.g. ``"photosynthesis"``).
 
     Returns:
         Up to 5 results, each with its title and a short text snippet.
@@ -43,7 +43,7 @@ def wikipedia_search(query: str) -> str:
         data = resp.json()
         results = data.get("query", {}).get("search", [])
         if not results:
-            return f"Aucun résultat Wikipedia pour : {query!r}"
+            return f"No Wikipedia results for: {query!r}"
 
         lines: list[str] = []
         for r in results:
@@ -75,12 +75,12 @@ def wikipedia_summary(title: str) -> str:
             timeout=8.0,
         )
         if resp.status_code == 404:
-            return f"[Article non trouvé : {title!r}]"
+            return f"[Article not found: {title!r}]"
         resp.raise_for_status()
         data = resp.json()
         extract: str = data.get("extract", "")
         if not extract:
-            return f"[Aucun résumé disponible pour : {title!r}]"
+            return f"[No summary available for: {title!r}]"
         # Keep it voice-friendly: cap at ~500 chars, end at a sentence boundary
         if len(extract) > 500:
             cut = extract[:500].rfind(".")

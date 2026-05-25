@@ -15,17 +15,17 @@ _GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 _FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 _IP_API_URL = "http://ip-api.com/json/"
 
-# WMO weather interpretation codes → French descriptions
+# WMO weather interpretation codes → English descriptions
 _WMO: dict[int, str] = {
-    0: "ciel dégagé", 1: "principalement dégagé", 2: "partiellement nuageux",
-    3: "couvert", 45: "brouillard", 48: "brouillard givrant",
-    51: "bruine légère", 53: "bruine modérée", 55: "bruine dense",
-    61: "pluie légère", 63: "pluie modérée", 65: "pluie forte",
-    71: "neige légère", 73: "neige modérée", 75: "neige forte",
-    77: "grains de neige", 80: "averses légères", 81: "averses modérées",
-    82: "averses violentes", 85: "averses de neige légères",
-    86: "averses de neige fortes", 95: "orage", 96: "orage avec grêle légère",
-    99: "orage avec grêle forte",
+    0: "clear sky", 1: "mainly clear", 2: "partly cloudy",
+    3: "overcast", 45: "fog", 48: "freezing fog",
+    51: "light drizzle", 53: "moderate drizzle", 55: "dense drizzle",
+    61: "light rain", 63: "moderate rain", 65: "heavy rain",
+    71: "light snow", 73: "moderate snow", 75: "heavy snow",
+    77: "snow grains", 80: "light showers", 81: "moderate showers",
+    82: "violent showers", 85: "light snow showers",
+    86: "heavy snow showers", 95: "thunderstorm", 96: "thunderstorm with light hail",
+    99: "thunderstorm with heavy hail",
 }
 
 
@@ -50,8 +50,8 @@ def _fetch_forecast(lat: float, lon: float) -> str:
     desc = _WMO.get(code, f"code {code}")
 
     return (
-        f"{desc.capitalize()}, {temp}°C (ressenti {feels}°C), "
-        f"vent {wind} km/h"
+        f"{desc.capitalize()}, {temp}°C (feels like {feels}°C), "
+        f"wind {wind} km/h"
     )
 
 
@@ -61,7 +61,7 @@ def get_local_weather() -> str:
 
     Uses Open-Meteo (no API key required).
 
-    Example output: ``Partiellement nuageux, 18°C (ressenti 16°C), vent 12 km/h``
+    Example output: ``Partly cloudy, 18°C (feels like 16°C), wind 12 km/h``
     """
     try:
         geo = httpx.get(_IP_API_URL, timeout=5.0).json()
@@ -82,12 +82,12 @@ def get_city_weather(city: str) -> str:
     Args:
         city: City name (e.g. ``"Paris"``, ``"Tokyo"``).
 
-    Example output: ``Paris — Couvert, 12°C (ressenti 9°C), vent 20 km/h``
+    Example output: ``Paris — Overcast, 12°C (feels like 9°C), wind 20 km/h``
     """
     try:
         geo_resp = httpx.get(
             _GEOCODE_URL,
-            params={"name": city, "count": 1, "language": "fr"},
+            params={"name": city, "count": 1, "language": "en"},
             timeout=5.0,
         )
         geo_resp.raise_for_status()

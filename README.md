@@ -159,7 +159,7 @@ See [docs/wiki/02-contributor-guide.md](docs/wiki/02-contributor-guide.md) for t
 
 ## Known Issues
 
-**Phantom transcriptions** — whisper.cpp hallucinates text (e.g. *"Merci."*, *"Sous-titres réalisés par..."*) on near-silence inputs. Atlas filters these via the `no_speech_prob` field in whisper's JSON output. Tune `WHISPER_NO_SPEECH_THRESHOLD` in `.env` if needed (default: `0.6`).
+**Phantom transcriptions** — whisper.cpp hallucinates text (e.g. *"Thank you."*, *"Subtitles by..."*) on near-silence inputs. Atlas filters these via the `no_speech_prob` field in whisper's JSON output. Tune `WHISPER_NO_SPEECH_THRESHOLD` in `.env` if needed (default: `0.6`).
 
 ---
 

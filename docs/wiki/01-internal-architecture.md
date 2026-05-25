@@ -1,14 +1,14 @@
-# Architecture Interne d'Atlas
+# Internal Architecture
 
-> Ce document décrit le fonctionnement interne d'Atlas à destination des contributeurs et des
-> mainteneurs. Pour l'installation et l'usage, voir [03-user-manual.md](03-user-manual.md).
+> This document describes Atlas internals for contributors and maintainers.
+> For installation and usage, see [03-user-manual.md](03-user-manual.md).
 
 ---
 
-## Table des matières
+## Table of contents
 
-1. [Vue d'ensemble — pipeline vocal](#1-vue-densemble--pipeline-vocal)
-2. [Modules du package `atlas/`](#2-modules-du-package-atlas)
+1. [Overview — voice pipeline](#1-overview--voice-pipeline)
+2. [Package modules `atlas/`](#2-package-modules-atlas)
    - [config.py](#configpy)
    - [db/user_db.py](#dbuser_dbpy)
    - [core/models.py](#coremodels.py)
@@ -21,19 +21,19 @@
    - [core/mcp_client.py](#coremcp_clientpy)
    - [core/health.py](#corehealthpy)
    - [core/orchestrator.py](#coreorchestratorpy)
-3. [Boucle multi-round d'outils](#3-boucle-multi-round-doutils)
-4. [Serveurs MCP — atlas/tools/](#4-serveurs-mcp--atlastools)
-5. [Système mémoire Obsidian](#5-système-mémoire-obsidian)
+3. [Multi-round tool loop](#3-multi-round-tool-loop)
+4. [MCP servers — atlas/tools/](#4-mcp-servers--atlastools)
+5. [Obsidian memory system](#5-obsidian-memory-system)
 6. [Sleeping mode](#6-sleeping-mode)
-7. [Référence Config](#7-référence-config)
+7. [Config reference](#7-config-reference)
 
 ---
 
-## 1. Vue d'ensemble — pipeline vocal
+## 1. Overview — voice pipeline
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                           ATLAS — Pipeline vocal                          │
+│                         ATLAS — Voice Pipeline                            │
 └──────────────────────────────────────────────────────────────────────────┘
 
   Microphone
@@ -43,7 +43,7 @@
  │  WakeWord   │ ──────────────▶ │  STT  (whisper-cli)      │
  │  Listener   │  (Atlas.onnx)   │  VAD + no_speech_prob    │
  └─────────────┘                 └────────────┬─────────────┘
-                                              │ texte brut
+                                              │ raw text
                                               ▼
                                  ┌──────────────────────────┐
                                  │  SpeakerIdentifier       │
@@ -59,16 +59,16 @@
  │                    ┌──────▼──────┐                       │
  │                    │ tool_calls? │                       │
  │                    └──┬──────────┘                       │
- │                       │ oui          ┌─────────────────┐ │
- │                       └────────────▶ │  MCPClient      │ │
- │                                      │  timeout+gather │ │
- │                                      └────────┬────────┘ │
- │                       ┌─────────────────────◀─┘          │
- │                       │ résultats outils                  │
- │                       ▼                                   │
- │                  boucle suivante (MAX_TOOL_ROUNDS)        │
- │                       │ réponse finale                    │
- └───────────────────────┼──────────────────────────────────┘
+ │                       │ yes           ┌─────────────────┐ │
+ │                       └────────────▶  │  MCPClient      │ │
+ │                                       │  timeout+gather │ │
+ │                                       └────────┬────────┘ │
+ │                       ┌──────────────────────◀─┘          │
+ │                       │ tool results                       │
+ │                       ▼                                    │
+ │                  next round (MAX_TOOL_ROUNDS)              │
+ │                       │ final reply                        │
+ └───────────────────────┼───────────────────────────────────┘
                          │
                          ▼
             ┌─────────────────────────┐
@@ -81,58 +81,56 @@
                    → Sessions/<date>.md
 ```
 
-**8 étapes dans l'ordre :**
+**8 steps in order:**
 
-| # | Étape | Module |
-|---|-------|--------|
-| 1 | Détection du wakeword | `core/wake_word.py` |
-| 2 | Enregistrement + VAD | `core/stt.py` |
-| 3 | Transcription whisper | `core/stt.py` |
-| 4 | Identification du locuteur | `core/speaker_id.py` |
-| 5 | Construction du prompt système | `core/orchestrator.py` |
-| 6 | Inférence LLM + boucle outils | `core/orchestrator.py` + `core/mcp_client.py` |
-| 7 | Synthèse vocale | `core/tts.py` |
-| 8 | Persistance session | `core/session.py` |
+| # | Step | Module |
+|---|------|--------|
+| 1 | Wake word detection | `core/wake_word.py` |
+| 2 | Recording + VAD | `core/stt.py` |
+| 3 | Whisper transcription | `core/stt.py` |
+| 4 | Speaker identification | `core/speaker_id.py` |
+| 5 | System prompt construction | `core/orchestrator.py` |
+| 6 | LLM inference + tool loop | `core/orchestrator.py` + `core/mcp_client.py` |
+| 7 | Speech synthesis | `core/tts.py` |
+| 8 | Session persistence | `core/session.py` |
 
 ---
 
-## 2. Modules du package `atlas/`
+## 2. Package modules `atlas/`
 
 ### `config.py`
 
-Point d'entrée unique pour toute la configuration. Deux dataclasses :
+Single entry point for all configuration. Two dataclasses:
 
 ```python
 @dataclass(frozen=True)
 class OllamaOptions:
     temperature: float | None = None
     num_ctx: int | None = None
-    top_p: float | None = None
-    top_k: int | None = None
-    repeat_penalty: float | None = None
+    # … other generation params
 
-    def to_dict(self) -> dict: ...  # Retourne seulement les champs non-None
+    def to_dict(self) -> dict: ...  # Returns only non-None fields
 
 @dataclass(frozen=True)
 class Config:
     @classmethod
-    def from_env(cls) -> "Config": ...  # Lève ConfigError si variable manquante/invalide
+    def from_env(cls) -> "Config": ...  # Raises ConfigError if required var missing/invalid
 ```
 
-`Config.from_env()` lit le fichier `.env` via `python-dotenv`, valide les types, et lève
-`ConfigError` (sous-classe de `ValueError`) avec un message d'action si une variable
-obligatoire est absente ou malformée.
+`Config.from_env()` reads the `.env` file via `python-dotenv`, validates types, and raises
+`ConfigError` (a `ValueError` subclass) with an actionable message if a required variable
+is absent or malformed.
 
-**Avantages vs `os.getenv()` éparpillés :**
-- Toutes les variables sont documentées en un seul endroit
-- Injection directe dans les tests sans monkeypatching global
-- Frozen → immuable en runtime, détecte les bugs de mutation accidentelle
+**Advantages over scattered `os.getenv()` calls:**
+- All variables documented in one place
+- Direct injection in tests without global monkeypatching
+- Frozen → immutable at runtime, catches accidental mutation bugs
 
 ---
 
 ### `db/user_db.py`
 
-Couche SQLite WAL, schéma idempotent (créé au premier `init_db()`).
+SQLite WAL layer, idempotent schema (created on first `init_db()`).
 
 ```
 Table: users
@@ -144,24 +142,24 @@ Table: users
   profession       TEXT
   preferred_address TEXT
   other_addresses  TEXT   -- JSON list
-  embedding        BLOB   -- numpy float32, sérialisé via tobytes()/frombuffer()
+  embedding        BLOB   -- numpy float32, serialised via tobytes()/frombuffer()
 ```
 
-**API publique :**
+**Public API:**
 
-| Fonction | Description |
+| Function | Description |
 |----------|-------------|
-| `init_db(path)` | Crée/ouvre la DB, active WAL, retourne `Connection` |
-| `upsert_user(db, ...)` | INSERT … ON CONFLICT DO UPDATE — ne touche jamais l'embedding |
-| `update_embedding(db, name, vec)` | BLOB uniquement — séparé pour éviter d'écraser par accident |
-| `get_all_users(db)` | Retourne `list[User]` avec désérialisation BLOB → numpy |
-| `get_user_by_name(db, name)` | Retourne `User | None` |
+| `init_db(path)` | Create/open DB, enable WAL, return `Connection` |
+| `upsert_user(db, ...)` | INSERT … ON CONFLICT DO UPDATE — never touches the embedding |
+| `update_embedding(db, name, vec)` | BLOB only — separate to avoid accidental overwrites |
+| `get_all_users(db)` | Returns `list[User]` with BLOB → numpy deserialization |
+| `get_user_by_name(db, name)` | Returns `User | None` |
 
 ---
 
 ### `core/models.py`
 
-Dataclasses légères sans dépendances externes.
+Lightweight dataclasses with no external dependencies.
 
 ```python
 @dataclass
@@ -171,12 +169,12 @@ class User:
     user_tag: str
     preferred_address: str
     other_addresses: list[str]
-    embedding: np.ndarray | None  # exclu du __repr__
+    embedding: np.ndarray | None  # excluded from __repr__
 
     @property
     def is_guest(self) -> bool: ...
     @property
-    def all_addresses(self) -> list[str]: ...  # preferred + other, dédupliqué
+    def all_addresses(self) -> list[str]: ...  # preferred + others, deduplicated
 
 @dataclass(frozen=True)
 class SpeakerMatch:
@@ -184,14 +182,14 @@ class SpeakerMatch:
     score: float        # cosine 0.0–1.0
     method: str         # "match" | "fallback" | "guest"
 
-GUEST_USER: User  # Singleton invité (id=0)
+GUEST_USER: User  # Singleton guest (id=0)
 ```
 
 ---
 
 ### `core/audio_gate.py`
 
-Verrou async pour éviter que la STT enregistre pendant que TTS parle.
+Async lock to prevent the STT from recording while TTS is speaking.
 
 ```python
 class AudioGate:
@@ -202,14 +200,14 @@ class AudioGate:
 
     @asynccontextmanager
     async def closed(self):
-        # Ferme, yield, reouvre — garanti même en cas d'exception
+        # Closes, yields, reopens — guaranteed even on exception
 ```
 
-**Singleton de module :** `gate: AudioGate = AudioGate()` — importé directement par STT et TTS.
+**Module singleton:** `gate: AudioGate = AudioGate()` — imported directly by STT and TTS.
 
-**Pourquoi `asyncio.Event` et non `threading.Event` ?**  
-Le pipeline entier est `async`. `asyncio.Event` évite tout blocage de l'event loop : `await
-event.wait()` cède la main aux autres coroutines au lieu de bloquer un thread OS.
+**Why `asyncio.Event` instead of `threading.Event`?**  
+The entire pipeline is `async`. `asyncio.Event` avoids blocking the event loop:
+`await event.wait()` yields control to other coroutines instead of blocking an OS thread.
 
 ---
 
@@ -218,44 +216,44 @@ event.wait()` cède la main aux autres coroutines au lieu de bloquer un thread O
 ```python
 class WakeWordListener:
     async def listen(self) -> AsyncIterator[str]:
-        # Générateur async — yields le keyword détecté
-        # Vérifie debounce (_last_fired) pour éviter déclenchements répétés
+        # Async generator — yields the detected keyword string
+        # Checks debounce (_last_fired) to avoid repeated triggers
 ```
 
-Utilise `livekit-wakeword` avec le modèle `models/Atlas.onnx` (97 KB, commité dans le repo).
-Le seuil de confiance est configurable via `WAKE_WORD_THRESHOLD` (défaut : `0.5`).
+Uses `livekit-wakeword` with the `models/Atlas.onnx` model (97 KB, committed in the repo).
+Confidence threshold is configurable via `WAKE_WORD_THRESHOLD` (default: `0.5`).
 
 ---
 
 ### `core/stt.py`
 
-**Enregistrement — VAD énergie :**
+**Recording — energy VAD:**
 
 ```
-Chunks de 512 samples @ 16 kHz
+Chunks of 512 samples @ 16 kHz
          │
          ▼
-  pre-buffer 5 chunks (garde le début de la parole)
+  pre-buffer 5 chunks (keeps the start of speech)
          │
-  RMS > threshold ? ──Non──▶ silence_count++
-         │ Oui                      │
+  RMS > threshold ? ──No──▶ silence_count++
+         │ Yes                      │
   is_speaking = True     silence_count > MAX_SILENCE ?
-         │                          │ Oui
-  accumule audio        stop + retourne PCM brut
+         │                          │ Yes
+  accumulate audio        stop + return raw PCM
          │
-  MAX_DURATION atteinte ? ──Oui──▶ stop forcé
+  MAX_DURATION reached ? ──Yes──▶ forced stop
 ```
 
-**Transcription — filtre `no_speech_prob` :**
+**Transcription — `no_speech_prob` filter:**
 
 ```bash
 whisper-cli --output-format json --no-timestamps -f audio.wav
 ```
 
-Le JSON retourné contient `result[0].no_speech_prob`. Si cette valeur dépasse
-`WHISPER_NO_SPEECH_THRESHOLD` (défaut : `0.6`), la transcription est ignorée
-(retourne `""`). Cela corrige le bug documenté de *transcription fantôme* où
-whisper hallucine "Merci." ou "Sous-titres réalisés par..." sur un silence.
+The returned JSON contains `result[0].no_speech_prob`. If this value exceeds
+`WHISPER_NO_SPEECH_THRESHOLD` (default: `0.6`), the transcription is discarded
+(returns `""`). This fixes the documented *phantom transcription* bug where
+whisper hallucinates "Thank you." or "Subtitles by..." on silence.
 
 ---
 
@@ -265,40 +263,40 @@ whisper hallucine "Merci." ou "Sous-titres réalisés par..." sur un silence.
 class TTS:
     async def speak(self, text: str) -> None:
         clean = _strip_markdown(text)
-        async with gate.closed():          # Ferme le gate pendant la synth
+        async with gate.closed():          # Close gate during synthesis
             await _run_say(clean, ...)
 ```
 
-**16 patterns Markdown strippés :**
-blocs de code fencés, code inline, gras/italique (4 combinaisons), titres `#`,
-listes `-`/`*`/`1.`, blockquotes `>`, liens `[text](url)`, wikilinks `[[...]]`,
-balises HTML.
+**16 Markdown patterns stripped:**
+fenced code blocks, inline code, bold/italic (4 combinations), ATX headers `#`,
+lists `-`/`*`/`1.`, blockquotes `>`, links `[text](url)`, wikilinks `[[...]]`,
+HTML tags.
 
 ---
 
 ### `core/speaker_id.py`
 
-**Identification en 3 étapes :**
+**Identification in 3 steps:**
 
 ```
-audio PCM  →  ECAPA-TDNN  →  vecteur L2-normalisé (192 dims)
+audio PCM  →  ECAPA-TDNN  →  L2-normalised vector (192 dims)
                                       │
-                          score cosine vs chaque utilisateur
+                          cosine score vs each registered user
                                       │
-         score > SPEAKER_MATCH_THRESHOLD (0.75) ? ──▶ method="match"
-                │ Non
-         score > SPEAKER_FALLBACK_THRESHOLD (0.55) ? ──▶ method="fallback" (utilisateur le plus probable)
-                │ Non
+         score > SPEAKER_ID_THRESHOLD (0.75) ? ──▶ method="match"
+                │ No
+         score > SPEAKER_FALLBACK_MIN_SCORE (0.30) ? ──▶ method="fallback" (most likely user)
+                │ No
          ──▶ GUEST_USER, method="guest"
 ```
 
-**Auto-amélioration des embeddings :**
-- Chaque match enregistre un WAV dans `user_voice_templates/<user_tag>/sample_N.wav`
-- Pruning si `> MAX_VOICE_SAMPLES` (défaut : 10)
-- `_recompute_embedding()` : moyenne des embeddings de tous les WAVs sauvegardés
+**Self-improving embeddings:**
+- Each match saves a WAV in `user_voice_templates/<user_tag>/sample_N.wav`
+- Pruning if `> MAX_VOICE_SAMPLES` (default: 50)
+- `_recompute_embedding()`: averages embeddings of all saved WAVs
 
-**Sleeping mode :** `recompute_all_embeddings()` re-average tous les utilisateurs sur les 
-nouveaux échantillons accumulés.
+**Sleeping mode:** `recompute_all_embeddings()` re-averages all users from
+samples accumulated since the last sleep cycle.
 
 ---
 
@@ -311,30 +309,32 @@ class SessionLog:
     speakers: set[str]
 
     def append_turn(self, speaker, user_text, tools_called, reply) -> None
-    # Écriture immédiate (crash-safe — pas de buffer)
+    # Immediate write (crash-safe — no buffer)
 
     def close(self) -> None
-    # Footer stats + backlink [[Sessions]] + enregistrement dans Sessions.md
+    # Footer stats + [[Sessions]] backlink + registration in Sessions.md
 ```
 
-**Format d'un fichier de session :**
+**Session file format:**
 
 ```markdown
 ---
 type: session
 date: 2025-01-15
-started_at: 10:23:45
+start: 10:23:45
 ---
 
-# Session 2025-01-15 10:23:45
+# Session 2025-01-15 at 10:23
 
-## Tour 1 — Roma
-**Utilisateur :** Quelle heure est-il ?
-**Outils :** datetime__get_datetime
-**Atlas :** Il est 10h23.
+## Turn 1 · 10:23:52 · Roma
+> What the user said
+
+🔧 `datetime__get_datetime`
+
+Atlas's reply.
 
 ---
-*Session fermée — 1 tour(s), durée ~42s*
+*Session closed at 10:35:00 — 1 turn, 11 min, speaker: Roma*
 [[Sessions]]
 ```
 
@@ -342,10 +342,10 @@ started_at: 10:23:45
 
 ### `core/mcp_client.py`
 
-**7 serveurs MCP enregistrés dans `TOOL_SERVERS` :**
+**7 MCP servers registered in `TOOL_SERVERS`:**
 
-| Nom | Module |
-|-----|--------|
+| Name | Module |
+|------|--------|
 | `memory` | `atlas.tools.memory` |
 | `datetime` | `atlas.tools.datetime_info` |
 | `geoposition` | `atlas.tools.geoposition` |
@@ -354,24 +354,24 @@ started_at: 10:23:45
 | `wikipedia` | `atlas.tools.wikipedia` |
 | `inbox` | `atlas.tools.inbox` |
 
-**Prérequis d'outils** (`TOOL_PREREQUISITES`) :  
+**Tool prerequisites** (`TOOL_PREREQUISITES`):  
 `memory_write`, `memory_patch`, `memory_link`, `memory_delete`, `memory_append`
-nécessitent tous `memory__memory_arbo` au préalable. L'orchestrateur enforce cet
-ordre avant de dispatcher.
+all require `memory__memory_arbo` first. The orchestrator enforces this
+order before dispatching.
 
-**Timeout par outil :**
+**Per-tool timeout:**
 
 ```python
 result = await asyncio.wait_for(
     _dispatch_tool(server, name, args),
-    timeout=config.mcp_tool_timeout   # défaut 10.0s
+    timeout=config.mcp_tool_timeout   # default 10.0s
 )
 ```
 
-**Dispatch parallèle :**
+**Parallel dispatch:**
 
 ```python
-# Appels indépendants → asyncio.gather
+# Independent calls → asyncio.gather
 results = await asyncio.gather(*tasks, return_exceptions=True)
 ```
 
@@ -379,174 +379,172 @@ results = await asyncio.gather(*tasks, return_exceptions=True)
 
 ### `core/health.py`
 
-6 checks au démarrage, invoqués par `python -m atlas.core.orchestrator --check` :
+6 startup checks, invoked by `python -m atlas.core.orchestrator --check`:
 
-| Check | Critique | Ce qui est vérifié |
-|-------|----------|--------------------|
+| Check | Critical | What is verified |
+|-------|----------|-----------------|
 | Ollama | ✓ | HTTP GET `/` → 200 |
 | whisper-cli | ✓ | `shutil.which("whisper-cli")` |
-| Whisper model | ✓ | `WHISPER_MODEL_PATH` existe |
-| Wake word models | ✓ | Tous les paths `WAKE_WORD_MODEL_PATHS` existent |
-| Database | ✓ | `sqlite3.connect()` réussit |
-| Vault | ✗ | `ATLAS_VAULT_PATH` existe (avertissement si absent) |
+| Whisper model | ✓ | `WHISPER_MODEL_PATH` exists |
+| Wake word models | ✓ | All paths in `WAKE_WORD_MODEL_PATHS` exist |
+| Database | ✓ | `sqlite3.connect()` succeeds |
+| Vault | ✗ | `ATLAS_VAULT_PATH` exists (warning if absent) |
 
-Sortie terminale colorée : `✓` vert / `⚠` jaune / `✗` rouge.  
-`HealthCheckError` levée si au moins un check critique échoue.
+Coloured terminal output: `✓` green / `⚠` yellow / `✗` red.  
+`HealthCheckError` raised if at least one critical check fails.
 
 ---
 
 ### `core/orchestrator.py`
 
-Point d'entrée principal du pipeline. Modes :
+Main pipeline entry point. Modes:
 
-| Flag | Comportement |
-|------|-------------|
-| *(défaut)* | Wakeword + audio complet |
-| `--text` | Stdin → bypass wakeword/STT, lit une ligne, idéal pour debug |
-| `--check` | Lance health check puis quitte |
-| `--nothink` | Désactive les tokens `<think>` d'Ollama (plus rapide) |
+| Flag | Behaviour |
+|------|-----------|
+| *(default)* | Wake word + full audio pipeline |
+| `--text` | Stdin → bypass wake word/STT, reads one line, ideal for debugging |
+| `--check` | Run health check then exit |
+| `--nothink` | Disable Ollama thinking tokens (faster) |
 
 ---
 
-## 3. Boucle multi-round d'outils
+## 3. Multi-round tool loop
 
 ```python
-MAX_TOOL_ROUNDS = 6   # Cap anti-boucle infinie
+MAX_TOOL_ROUNDS = 10   # Anti-infinite-loop cap
 
 for round_n in range(MAX_TOOL_ROUNDS):
     response = await ollama.chat(messages, tools=schemas)
 
     if response has tool_calls:
-        # 1. Enforce prerequisites (memory_arbo si nécessaire)
-        # 2. Dispatch indépendants en parallèle
-        # 3. Ajouter résultats au contexte
-        continue                            # → round suivant
+        # 1. Enforce prerequisites (memory_arbo if needed)
+        # 2. Dispatch independent calls in parallel
+        # 3. Add results to context
+        continue                            # → next round
 
     text = response.message.content
 
-    if text.endswith("[SUITE]"):            # Sentinelle de continuation
+    if text.endswith("[SUITE]"):            # Continuation sentinel
         tts.speak(text.removesuffix("[SUITE]"))
         messages.append(user="continue")
         continue
 
-    break  # Réponse finale → TTS → session log
+    break  # Final reply → TTS → session log
 ```
 
-**Sentinelle `[SUITE]` :** permet au LLM de produire une réponse longue en plusieurs
-parties vocales sans dépasser le contexte. Cap à `_QUESTION_SENTINEL_CAP = 3` itérations
-successives de suite sans tool calls pour éviter les boucles.
+**`[SUITE]` sentinel:** allows the LLM to produce a long response in multiple
+spoken parts without exceeding the context window. Capped at `_QUESTION_SENTINEL_CAP = 3`
+successive sentinel iterations without tool calls to prevent loops.
 
 ---
 
-## 4. Serveurs MCP — `atlas/tools/`
+## 4. MCP servers — `atlas/tools/`
 
-Chaque outil est un serveur **FastMCP stdio** — spawné comme sous-processus par
-`MCPClient`. Communication via le protocole MCP sur stdin/stdout.
+Each tool is a **FastMCP stdio** server — spawned as a subprocess by
+`MCPClient`. Communication via the MCP protocol over stdin/stdout.
 
-| Fichier | Outils exposés |
-|---------|---------------|
-| `memory.py` | `memory_arbo`, `memory_read`, `memory_write`, `memory_patch`, `memory_link`, `memory_delete`, `memory_append` |
+| File | Exposed tools |
+|------|--------------|
+| `memory.py` | `memory_arbo`, `memory_read`, `memory_write`, `memory_patch_section`, `memory_link`, `memory_delete`, `memory_append`, `memory_search` |
 | `datetime_info.py` | `get_datetime` |
-| `geoposition.py` | `get_location` |
-| `weather.py` | `get_weather` |
-| `metrics.py` | `get_system_metrics` |
-| `wikipedia.py` | `search_wikipedia`, `get_wikipedia_article` |
-| `inbox.py` | `read_inbox` |
+| `geoposition.py` | `get_current_place` |
+| `weather.py` | `get_local_weather`, `get_city_weather` |
+| `metrics.py` | `get_mac_metrics` |
+| `wikipedia.py` | `wikipedia_search`, `wikipedia_summary` |
+| `inbox.py` | `inbox_list`, `inbox_read` |
 
-**Protection traversée vault (`memory.py`) :**
+**Vault traversal protection (`memory.py`):**
 
 ```python
 def _note_path(vault: Path, name: str) -> Path:
     target = (vault / name).resolve()
     if not target.is_relative_to(vault.resolve()):
-        raise ValueError("Path traversal interdit")
+        raise ValueError("Path traversal not allowed")
     return target
 ```
 
 ---
 
-## 5. Système mémoire Obsidian
+## 5. Obsidian memory system
 
-**Structure du vault (`ATLAS_VAULT_PATH`) :**
+**Vault structure (`ATLAS_VAULT_PATH`):**
 
 ```
 atlas_memory/
-├── Sessions.md          ← Hub index de toutes les sessions
+├── Sessions.md          ← Hub index of all sessions
 ├── Sessions/
 │   ├── 2025-01-15_102345.md
 │   └── 2025-01-16_090012.md
 ├── Topics/
 │   ├── Python.md
-│   └── Développement.md
+│   └── Development.md
 ├── People/
 │   └── Roma.md
 └── Notes/
     └── ...
 ```
 
-**Auto-tagging :** `memory_write` injecte automatiquement `user_tag` dans le
-frontmatter YAML de chaque note créée :
+**Auto-tagging:** `memory_write` automatically injects `user_tag` into the
+YAML frontmatter of every created note:
 
 ```yaml
 ---
-type: note
-user_tag: user_roma
-date: 2025-01-15
+type: memory
+tags: [user_roma]
 ---
 ```
 
-**Wikilinks :** Les notes se référencent entre elles via `[[NomNote]]`. L'outil
-`memory_link` ajoute un lien bidirectionnel. `memory_arbo` retourne l'arborescence
-complète pour contextualiser les appels d'écriture.
+**Wikilinks:** Notes cross-reference each other via `[[NoteName]]`. The
+`memory_link` tool adds a bidirectional link. `memory_arbo` returns the full
+directory tree to contextualise write calls.
 
-**Sessions hub (`Sessions.md`) :**  
-`SessionLog.close()` ajoute automatiquement `- [[Sessions/YYYY-MM-DD_HHMMSS]]` à
-`Sessions.md`. `scripts/index_sessions.py` rétro-indexe les sessions orphelines.
+**Sessions hub (`Sessions.md`):**  
+`SessionLog.close()` automatically appends `- [[Sessions/YYYY-MM-DD_HHMMSS]]` to
+`Sessions.md`. `scripts/index_sessions.py` retroactively indexes orphan sessions.
 
 ---
 
 ## 6. Sleeping mode
 
-**Déclencheur :** inactivité > `SLEEPING_TIMEOUT` secondes (défaut : 300s).
+**Trigger:** inactivity > `SLEEP_TIMEOUT` seconds (default: 180s).
 
-**Actions :**
+**Actions:**
 
-1. TTS annonce la mise en veille (`"Je passe en mode veille."`)
-2. `recompute_all_embeddings(config, db)` re-average tous les embeddings utilisateurs
-   sur les nouveaux samples vocaux accumulés depuis la dernière veille
-3. `SessionLog.close()` — ferme et archive la session en cours
-4. Nouvelle `SessionLog()` créée — prête pour la session suivante
-5. Retour à l'écoute du wakeword
+1. TTS announces going to sleep (`"Going to sleep."`)
+2. `recompute_all_embeddings(config, db)` re-averages all user embeddings
+   from voice samples accumulated since the last sleep cycle
+3. `SessionLog.close()` — closes and archives the current session
+4. New `SessionLog()` created — ready for the next conversation
+5. Returns to listening for the wake word
 
-Implémenté dans `_sleeping_mode_monitor()` comme tâche asyncio de fond — ne bloque
-pas le pipeline principal.
+Implemented in `_sleeping_mode_monitor()` as a background asyncio task —
+does not block the main pipeline.
 
 ---
 
-## 7. Référence Config
+## 7. Config reference
 
-| Champ | Variable `.env` | Défaut | Obligatoire |
-|-------|----------------|--------|-------------|
-| `ollama_host` | `OLLAMA_HOST` | `http://localhost:11434` | Non |
-| `ollama_model` | `OLLAMA_MODEL` | `llama3.2` | Non |
-| `whisper_bin` | `WHISPER_BIN` | `whisper-cli` | Non |
-| `whisper_model_path` | `WHISPER_MODEL_PATH` | — | **Oui** |
-| `whisper_language` | `WHISPER_LANGUAGE` | `fr` | Non |
-| `whisper_no_speech_threshold` | `WHISPER_NO_SPEECH_THRESHOLD` | `0.6` | Non |
-| `wake_word_models` | `WAKE_WORD_MODEL_PATHS` | — | **Oui** |
-| `wake_word_threshold` | `WAKE_WORD_THRESHOLD` | `0.5` | Non |
-| `wake_word_debounce` | `WAKE_WORD_DEBOUNCE` | `2.0` | Non |
-| `vault_path` | `ATLAS_VAULT_PATH` | — | **Oui** |
-| `speaker_db_path` | `SPEAKER_DB_PATH` | `./atlas_users.db` | Non |
-| `voice_templates_dir` | `VOICE_TEMPLATES_DIR` | `./user_voice_templates` | Non |
-| `speaker_match_threshold` | `SPEAKER_MATCH_THRESHOLD` | `0.75` | Non |
-| `speaker_fallback_threshold` | `SPEAKER_FALLBACK_THRESHOLD` | `0.55` | Non |
-| `max_voice_samples` | `MAX_VOICE_SAMPLES` | `10` | Non |
-| `mcp_tool_timeout` | `MCP_TOOL_TIMEOUT` | `10.0` | Non |
-| `sleeping_timeout` | `SLEEPING_TIMEOUT` | `300` | Non |
-| `tts_rate` | `TTS_RATE` | *(say défaut)* | Non |
-| `claude_api_key` | `CLAUDE_API_KEY` | `""` | Non |
-| `ollama_options` | `OLLAMA_TEMPERATURE`, `OLLAMA_NUM_CTX`, … | `None` each | Non |
+| Field | `.env` variable | Default | Required |
+|-------|----------------|---------|----------|
+| `ollama_host` | `OLLAMA_HOST` | `http://localhost:11434` | No |
+| `ollama_model` | `OLLAMA_MODEL` | `llama3.2` | No |
+| `whisper_bin` | `WHISPER_CPP_BIN` | `whisper-cli` | No |
+| `whisper_model` | `WHISPER_CPP_MODEL` | — | **Yes** |
+| `whisper_language` | `WHISPER_CPP_LANGUAGE` | `en` | No |
+| `whisper_no_speech_threshold` | `WHISPER_NO_SPEECH_THRESHOLD` | `0.6` | No |
+| `wake_word_models` | `WAKE_WORD_MODELS` | `models/Atlas.onnx` | No |
+| `wake_word_threshold` | `WAKE_WORD_THRESHOLD` | `0.5` | No |
+| `wake_word_debounce` | `WAKE_WORD_DEBOUNCE` | `2.0` | No |
+| `vault_path` | `ATLAS_VAULT_PATH` | `./atlas_memory` | No |
+| `speaker_db_path` | `SPEAKER_DB_PATH` | `./atlas_users.db` | No |
+| `voice_templates_dir` | `VOICE_TEMPLATES_DIR` | `./user_voice_templates` | No |
+| `speaker_id_threshold` | `SPEAKER_ID_THRESHOLD` | `0.75` | No |
+| `speaker_fallback_min_score` | `SPEAKER_FALLBACK_MIN_SCORE` | `0.30` | No |
+| `mcp_tool_timeout` | `MCP_TOOL_TIMEOUT` | `10.0` | No |
+| `sleep_timeout` | `SLEEP_TIMEOUT` | `180` | No |
+| `tts_rate` | `TTS_RATE` | *(say default)* | No |
+| `nothink` | `NOTHINK` | `false` | No |
+| `think_depth` | `THINK_DEPTH` | `moderate` | No |
 
-`ollama_options_dict()` retourne uniquement les options non-`None` — seuls ces champs
-sont envoyés à l'API Ollama pour ne pas écraser les valeurs du modèle.
+`ollama_options_dict()` returns only non-`None` options — only those fields
+are sent to the Ollama API to avoid overriding the model's own defaults.
