@@ -148,7 +148,15 @@ def get_user_by_name(conn: sqlite3.Connection, name: str) -> "User | None":
         return None
 
     embedding = _blob_to_embedding(row["embedding"]) if row["embedding"] else None
-    other = json.loads(row["other_addresses"] or "[]")
+    raw_addr = row["other_addresses"] or ""
+    if raw_addr:
+        try:
+            other = json.loads(raw_addr)
+        except json.JSONDecodeError:
+            # Legacy CSV format from older schemas (e.g. "Roma,Noctisse")
+            other = [a.strip() for a in raw_addr.split(",") if a.strip()]
+    else:
+        other = []
     return User(
         id=row["id"],
         name=row["name"],
@@ -179,24 +187,39 @@ def upsert_user(
     """
     other_json = json.dumps(other_addresses or [])
     preferred = preferred_address or name
-    conn.execute(
-        """
-        INSERT INTO users (name, user_tag, age, gender, profession,
-                           preferred_address, other_addresses)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(name) DO UPDATE SET
-            user_tag          = excluded.user_tag,
-            age               = COALESCE(excluded.age, age),
-            gender            = COALESCE(excluded.gender, gender),
-            profession        = COALESCE(excluded.profession, profession),
-            preferred_address = excluded.preferred_address,
-            other_addresses   = excluded.other_addresses
-        """,
-        (name, user_tag, age, gender, profession, preferred, other_json),
-    )
+
+    existing = conn.execute(
+        "SELECT id FROM users WHERE name = ?", (name,)
+    ).fetchone()
+
+    if existing:
+        conn.execute(
+            """
+            UPDATE users SET
+                user_tag          = ?,
+                age               = COALESCE(?, age),
+                gender            = COALESCE(?, gender),
+                profession        = COALESCE(?, profession),
+                preferred_address = ?,
+                other_addresses   = ?
+            WHERE name = ?
+            """,
+            (user_tag, age, gender, profession, preferred, other_json, name),
+        )
+        user_id: int = existing["id"]
+    else:
+        conn.execute(
+            """
+            INSERT INTO users (name, user_tag, age, gender, profession,
+                               preferred_address, other_addresses)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (name, user_tag, age, gender, profession, preferred, other_json),
+        )
+        row = conn.execute("SELECT id FROM users WHERE name = ?", (name,)).fetchone()
+        user_id = row["id"]
+
     conn.commit()
-    row = conn.execute("SELECT id FROM users WHERE name = ?", (name,)).fetchone()
-    user_id: int = row["id"]
     logger.info("User upserted → id=%d  name=%r  tag=%r", user_id, name, user_tag)
     return user_id
 
