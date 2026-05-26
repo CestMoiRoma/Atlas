@@ -195,13 +195,15 @@ class STT:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             wav_path = Path(tmpdir) / "utterance.wav"
+            json_out = Path(tmpdir) / "out"   # whisper appends .json → out.json
             sf.write(str(wav_path), audio, cfg.audio_sample_rate, subtype="PCM_16")
 
             cmd = [
                 cfg.whisper_bin,
                 "--model", str(cfg.whisper_model),
                 "--language", cfg.whisper_language,
-                "--output-format", "json",
+                "--output-json-full",   # -ojf: full JSON with no_speech_prob per segment
+                "--output-file", str(json_out),
                 "--no-prints",
                 "--file", str(wav_path),
             ]
@@ -224,13 +226,24 @@ class STT:
                 logger.warning("whisper-cli exited %d: %s", result.returncode, result.stderr[:200])
                 return ""
 
-            # whisper writes the JSON file next to the input file
-            json_path = wav_path.with_suffix(".json")
-            if not json_path.exists():
-                # Fall back: try parsing stdout directly
-                raw = result.stdout.strip()
-            else:
+            # Primary: explicit output file (out.json)
+            json_path = json_out.with_suffix(".json")
+            if json_path.exists():
                 raw = json_path.read_text(encoding="utf-8")
+            else:
+                # Fallbacks: whisper may still use the input filename as base
+                alt1 = wav_path.with_suffix(".json")          # utterance.json
+                alt2 = wav_path.parent / (wav_path.name + ".json")  # utterance.wav.json
+                if alt1.exists():
+                    raw = alt1.read_text(encoding="utf-8")
+                elif alt2.exists():
+                    raw = alt2.read_text(encoding="utf-8")
+                else:
+                    raw = result.stdout.strip()
+                    logger.warning(
+                        "whisper JSON not found at expected paths — falling back to stdout"
+                        " (stdout len=%d)", len(raw)
+                    )
 
             return self._parse_whisper_json(raw)
 
@@ -244,24 +257,26 @@ class STT:
             Transcribed text, or empty string if filtered out.
         """
         if not raw:
+            logger.warning("whisper returned empty output — no transcription")
             return ""
 
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
             # whisper sometimes prints the text directly without JSON
-            logger.debug("whisper output is not JSON — using raw text")
+            logger.info("whisper output is not JSON — using raw text: %r", raw[:120])
             return raw.strip()
 
         segments: list[dict] = data.get("transcription", data.get("segments", []))
         if not segments:
+            logger.warning("whisper JSON has no segments — keys: %s", list(data.keys()))
             return ""
 
         # Apply no_speech_prob filter on the first segment
         first = segments[0]
         no_speech = float(first.get("no_speech_prob", 0.0))
         if no_speech > self._cfg.whisper_no_speech_threshold:
-            logger.debug(
+            logger.info(
                 "Transcription discarded — no_speech_prob=%.3f > threshold=%.3f",
                 no_speech, self._cfg.whisper_no_speech_threshold,
             )
@@ -272,5 +287,5 @@ class STT:
             for seg in segments
             if seg.get("text", "").strip()
         )
-        logger.debug("Transcription: %r  (no_speech_prob=%.3f)", text, no_speech)
+        logger.info("Transcription: %r  (no_speech_prob=%.3f)", text, no_speech)
         return text.strip()
