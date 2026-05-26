@@ -112,7 +112,15 @@ def get_all_users(conn: sqlite3.Connection) -> list["User"]:
     users: list[User] = []
     for row in rows:
         embedding = _blob_to_embedding(row["embedding"]) if row["embedding"] else None
-        other = json.loads(row["other_addresses"] or "[]")
+        raw_addr = row["other_addresses"] or ""
+        if raw_addr:
+            try:
+                other = json.loads(raw_addr)
+            except json.JSONDecodeError:
+                # Legacy CSV format from older schemas (e.g. "Roma,Noctisse")
+                other = [a.strip() for a in raw_addr.split(",") if a.strip()]
+        else:
+            other = []
         users.append(User(
             id=row["id"],
             name=row["name"],
