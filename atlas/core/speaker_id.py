@@ -120,7 +120,14 @@ def _embed(audio: np.ndarray, sample_rate: int) -> np.ndarray:
 
 
 def _cosine(a: np.ndarray, b: np.ndarray) -> float:
-    """Cosine similarity between two unit vectors (fast path: just dot product)."""
+    """Cosine similarity between two unit vectors (fast path: just dot product).
+
+    Returns 0.0 when the two vectors have different shapes (e.g. a stored
+    embedding was produced by a different model version) so the caller can
+    treat the user as a non-match rather than crashing.
+    """
+    if a.shape != b.shape:
+        return 0.0
     return float(np.dot(a, b))
 
 
