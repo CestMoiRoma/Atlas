@@ -54,6 +54,19 @@ from atlas.core.audio_gate import gate
 
 logger = logging.getLogger(__name__)
 
+# Whisper hallucination phrases that appear on silence/ambient noise.
+# These have low no_speech_prob but are never real user utterances.
+_HALLUCINATION_FRAGMENTS: tuple[str, ...] = (
+    "sous-titrage société radio-canada",
+    "sous-titrage",
+    "merci d'avoir regardé",
+    "merci d'avoir écouté",
+    "thank you for watching",
+    "thank you for listening",
+    "subtitles by",
+    "amara.org",
+)
+
 # Number of audio chunks held in the pre-speech buffer.
 # At 16 kHz / 512 samples per chunk this is ~160 ms of audio kept before VAD
 # triggers — enough to capture the leading consonant of any wake word response.
@@ -286,6 +299,12 @@ class STT:
             seg.get("text", "").strip()
             for seg in segments
             if seg.get("text", "").strip()
-        )
+        ).strip()
+
+        # Filter known whisper hallucinations that survive the no_speech_prob check
+        if any(frag in text.lower() for frag in _HALLUCINATION_FRAGMENTS):
+            logger.info("Transcription discarded — known hallucination: %r", text)
+            return ""
+
         logger.info("Transcription: %r  (no_speech_prob=%.3f)", text, no_speech)
-        return text.strip()
+        return text
